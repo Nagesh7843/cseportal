@@ -1,0 +1,13 @@
+The following files have been resolved:
+   org.springframework.boot:spring-boot-starter-web:jar:4.1.0:compile -- module spring.boot.starter.web [auto]
+   org.springframework.boot:spring-boot-starter-data-jpa:jar:4.1.0:compile -- module spring.boot.starter.data.jpa [auto]
+   org.springframework.boot:spring-boot-starter-validation:jar:4.1.0:compile -- module spring.boot.starter.validation [auto]
+   org.postgresql:postgresql:jar:42.7.11:runtime -- module org.postgresql.jdbc [auto]
+   org.projectlombok:lombok:jar:1.18.46:compile (optional) -- module lombok
+   org.springframework.boot:spring-boot-starter-security:jar:4.1.0:compile -- module spring.boot.starter.security [auto]
+   io.jsonwebtoken:jjwt-api:jar:0.11.5:compile -- module jjwt.api (auto)
+   io.jsonwebtoken:jjwt-impl:jar:0.11.5:runtime -- module jjwt.impl (auto)
+   io.jsonwebtoken:jjwt-jackson:jar:0.11.5:runtime -- module jjwt.jackson (auto)
+   org.springframework.boot:spring-boot-starter-mail:jar:4.1.0:compile -- module spring.boot.starter.mail [auto]
+   org.springframework.boot:spring-boot-starter-test:jar:4.1.0:test -- module spring.boot.starter.test [auto]
+

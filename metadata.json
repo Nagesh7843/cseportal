@@ -1,0 +1,6 @@
+{
+  "name": "CSE Department Portal",
+  "description": "Comprehensive academic & administrative portal for the Computer Science & Engineering Department featuring admin analytics, faculty portal, student hub, curriculum & research management, and bulk communication broadcaster.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
