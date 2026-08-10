@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
 public class Notice {
 
     @Id
@@ -39,14 +40,17 @@ public class Notice {
     @Column(nullable = false)
     private String status; // DRAFT, PUBLISHED, SCHEDULED
 
-    @Column(name = "target_years")
-    private String targetYears;
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(name = "target_audience", columnDefinition = "jsonb")
+    private java.util.Map<String, Object> targetAudience;
 
-    @Column(name = "target_divisions")
-    private String targetDivisions;
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(name = "read_by", columnDefinition = "jsonb")
+    private java.util.List<String> readBy;
 
-    @Column(name = "target_batches")
-    private String targetBatches;
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private java.util.List<java.util.Map<String, String>> attachments;
 
     @Column(name = "published_at", nullable = false)
     private String publishedAt;
@@ -58,6 +62,7 @@ public class Notice {
     private String expiresAt; // Auto-deletion timestamp or timer
 
     @Column(name = "views_count")
+    @Builder.Default
     private Integer viewsCount = 0;
 
     @Column(name = "created_at", insertable = false, updatable = false)

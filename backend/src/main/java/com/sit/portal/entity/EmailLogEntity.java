@@ -34,6 +34,7 @@ public class EmailLogEntity {
     private String status;
 
     @Column(name = "open_rate")
+    @Builder.Default
     private String openRate = "Not available";
 
     @Column(columnDefinition = "TEXT", nullable = false)

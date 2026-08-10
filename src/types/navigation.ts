@@ -11,4 +11,5 @@ export type ViewMode =
   | 'faculty' 
   | 'students' 
   | 'analytics' 
-  | 'settings';
+  | 'settings'
+  | 'faculty-email';

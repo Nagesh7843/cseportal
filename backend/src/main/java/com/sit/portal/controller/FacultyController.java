@@ -28,6 +28,12 @@ public class FacultyController {
         return ResponseEntity.ok(savedFaculty);
     }
 
+    @PostMapping("/bulk")
+    public ResponseEntity<List<Faculty>> addFacultyBulk(@RequestBody List<Faculty> facultyList) {
+        List<Faculty> savedFacultyList = facultyRepository.saveAll(facultyList);
+        return ResponseEntity.ok(savedFacultyList);
+    }
+
     @PutMapping("/{id}/status")
     public ResponseEntity<Faculty> updateFacultyStatus(@PathVariable Long id, @RequestParam String status) {
         Optional<Faculty> facOpt = facultyRepository.findById(id);

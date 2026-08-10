@@ -1,6 +1,71 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { NoticeItem } from '@/types/notice';
+import { StudentRecord } from '@/types';
+import { EmailLog } from '@/types/communication';
 
-export const AnalyticsView: React.FC = () => {
+interface AnalyticsViewProps {
+  notices: NoticeItem[];
+  students: StudentRecord[];
+  emails: EmailLog[];
+}
+
+export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ notices, students, emails }) => {
+  // Calculations
+  const totalPublishedNotices = notices.length;
+
+  const activeStudentsCount = useMemo(() => {
+    return students.filter(s => s.status === 'Active').length || students.length;
+  }, [students]);
+
+  const avgReadRate = useMemo(() => {
+    if (notices.length === 0 || students.length === 0) return '0.0';
+    let totalReads = 0;
+    notices.forEach(n => {
+      totalReads += (n.viewsCount || 0);
+    });
+    const possibleReads = notices.length * students.length;
+    return ((totalReads / possibleReads) * 100).toFixed(1);
+  }, [notices, students]);
+
+  const fcmDeliveries = useMemo(() => {
+    return emails.reduce((acc, email) => acc + (email.recipientCount || 0), 0);
+  }, [emails]);
+
+  const categoryCounts = useMemo(() => {
+    const counts = { exam: 0, academic: 0, events: 0, urgent: 0 };
+    notices.forEach(n => {
+      if (n.category === 'Exam') counts.exam++;
+      else if (n.category === 'Academic') counts.academic++;
+      else if (n.category === 'Event') counts.events++;
+      else if (n.category === 'Emergency') counts.urgent++;
+    });
+    return counts;
+  }, [notices]);
+
+  const yearReadRates = useMemo(() => {
+    const years = ['TE', 'SE', 'BE', 'FE'];
+    return years.map(year => {
+      const studentsInYear = students.filter(s => s.academicYear === year || s.cohortBatch === year).length || 140; 
+      let yearViews = 0;
+      let yearTargetedNotices = 0;
+      notices.forEach(n => {
+        if (!n.targetAudience?.academicYear || n.targetAudience.academicYear.includes(year as any) || n.targetAudience.academicYear.length === 0) {
+          yearViews += (n.viewsCount || 0);
+          yearTargetedNotices++;
+        }
+      });
+      const rate = yearTargetedNotices > 0 ? Math.min(100, ((yearViews / (yearTargetedNotices * studentsInYear)) * 100)) : 0;
+      return {
+        year,
+        label: year === 'TE' ? 'Third Year (TE CSE)' : year === 'SE' ? 'Second Year (SE CSE)' : year === 'BE' ? 'Final Year (BE CSE)' : 'First Year (FE CSE)',
+        rate: rate.toFixed(1),
+        students: studentsInYear,
+        colorBg: year === 'TE' ? 'bg-[#000666]' : year === 'SE' ? 'bg-[#2b5bb5]' : year === 'BE' ? 'bg-[#005312]' : 'bg-[#7a4b00]',
+        textClass: year === 'TE' ? 'text-[#000666]' : year === 'SE' ? 'text-[#2b5bb5]' : year === 'BE' ? 'text-[#005312]' : 'text-[#7a4b00]'
+      };
+    });
+  }, [notices, students]);
+
   return (
     <div className="space-y-6">
       {/* Top Banner */}
@@ -28,10 +93,10 @@ export const AnalyticsView: React.FC = () => {
             <span className="text-[11px] font-bold text-[#454652] uppercase tracking-wider">Total Published Notices</span>
             <span className="material-symbols-outlined text-[#000666] text-[20px]">campaign</span>
           </div>
-          <p className="text-[28px] font-extrabold text-[#000666]">148</p>
+          <p className="text-[28px] font-extrabold text-[#000666]">{totalPublishedNotices}</p>
           <p className="text-[11px] text-emerald-600 font-bold mt-1 flex items-center gap-1">
-            <span className="material-symbols-outlined text-[14px]">trending_up</span>
-            +18% vs last month
+            <span className="material-symbols-outlined text-[14px]">sync</span>
+            Live Database Sync
           </p>
         </div>
 
@@ -40,8 +105,8 @@ export const AnalyticsView: React.FC = () => {
             <span className="text-[11px] font-bold text-[#454652] uppercase tracking-wider">Avg Read Rate</span>
             <span className="material-symbols-outlined text-[#2b5bb5] text-[20px]">mark_email_read</span>
           </div>
-          <p className="text-[28px] font-extrabold text-[#2b5bb5]">89.4%</p>
-          <p className="text-[11px] text-[#454652] font-medium mt-1">Target threshold: 85%</p>
+          <p className="text-[28px] font-extrabold text-[#2b5bb5]">{avgReadRate}%</p>
+          <p className="text-[11px] text-[#454652] font-medium mt-1">Calculated from total views</p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-[#c6c5d4] shadow-xs">
@@ -49,8 +114,8 @@ export const AnalyticsView: React.FC = () => {
             <span className="text-[11px] font-bold text-[#454652] uppercase tracking-wider">FCM Push Deliveries</span>
             <span className="material-symbols-outlined text-amber-600 text-[20px]">bolt</span>
           </div>
-          <p className="text-[28px] font-extrabold text-[#071e27]">1,420</p>
-          <p className="text-[11px] text-emerald-600 font-bold mt-1">99.2% delivery success</p>
+          <p className="text-[28px] font-extrabold text-[#071e27]">{fcmDeliveries}</p>
+          <p className="text-[11px] text-emerald-600 font-bold mt-1">Based on email broadcast logs</p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-[#c6c5d4] shadow-xs">
@@ -58,8 +123,8 @@ export const AnalyticsView: React.FC = () => {
             <span className="text-[11px] font-bold text-[#454652] uppercase tracking-wider">Active Students Engaged</span>
             <span className="material-symbols-outlined text-emerald-600 text-[20px]">groups</span>
           </div>
-          <p className="text-[28px] font-extrabold text-emerald-700">420</p>
-          <p className="text-[11px] text-[#454652] font-medium mt-1">Across FE, SE, TE & BE</p>
+          <p className="text-[28px] font-extrabold text-emerald-700">{activeStudentsCount}</p>
+          <p className="text-[11px] text-[#454652] font-medium mt-1">Total active directory</p>
         </div>
       </div>
 
@@ -69,45 +134,17 @@ export const AnalyticsView: React.FC = () => {
         <div className="bg-white p-6 rounded-2xl border border-[#c6c5d4] shadow-xs space-y-4">
           <h3 className="font-bold text-[18px] text-[#071e27]">Notice Read Rates by Academic Year</h3>
           <div className="space-y-3">
-            <div>
-              <div className="flex justify-between text-[12px] font-bold mb-1">
-                <span className="text-[#000666]">Third Year (TE CSE) — 94.2%</span>
-                <span className="text-[#454652]">132 / 140 Students</span>
+            {yearReadRates.map(yr => (
+              <div key={yr.year}>
+                <div className="flex justify-between text-[12px] font-bold mb-1">
+                  <span className={yr.textClass}>{yr.label} — {yr.rate}%</span>
+                  <span className="text-[#454652]">{Math.floor(yr.students * (parseFloat(yr.rate) / 100))} / {yr.students} Students</span>
+                </div>
+                <div className="w-full bg-[#e6f6ff] h-3 rounded-full overflow-hidden">
+                  <div className={`${yr.colorBg} h-3 rounded-full`} style={{ width: `${yr.rate}%` }}></div>
+                </div>
               </div>
-              <div className="w-full bg-[#e6f6ff] h-3 rounded-full overflow-hidden">
-                <div className="bg-[#000666] h-3 rounded-full" style={{ width: '94.2%' }}></div>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-[12px] font-bold mb-1">
-                <span className="text-[#2b5bb5]">Second Year (SE CSE) — 88.5%</span>
-                <span className="text-[#454652]">124 / 140 Students</span>
-              </div>
-              <div className="w-full bg-[#e6f6ff] h-3 rounded-full overflow-hidden">
-                <div className="bg-[#2b5bb5] h-3 rounded-full" style={{ width: '88.5%' }}></div>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-[12px] font-bold mb-1">
-                <span className="text-[#005312]">Final Year (BE CSE) — 91.0%</span>
-                <span className="text-[#454652]">127 / 140 Students</span>
-              </div>
-              <div className="w-full bg-[#e6f6ff] h-3 rounded-full overflow-hidden">
-                <div className="bg-[#005312] h-3 rounded-full" style={{ width: '91.0%' }}></div>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-[12px] font-bold mb-1">
-                <span className="text-[#7a4b00]">First Year (FE CSE) — 82.0%</span>
-                <span className="text-[#454652]">115 / 140 Students</span>
-              </div>
-              <div className="w-full bg-[#e6f6ff] h-3 rounded-full overflow-hidden">
-                <div className="bg-[#7a4b00] h-3 rounded-full" style={{ width: '82.0%' }}></div>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
 
@@ -117,25 +154,25 @@ export const AnalyticsView: React.FC = () => {
           <div className="grid grid-cols-2 gap-3">
             <div className="p-4 bg-[#e6f6ff] rounded-xl border border-[#dbf1fe]">
               <span className="text-[11px] font-bold text-[#454652] uppercase">Examination</span>
-              <p className="text-[22px] font-extrabold text-[#000666]">42 Notices</p>
+              <p className="text-[22px] font-extrabold text-[#000666]">{categoryCounts.exam} Notices</p>
               <p className="text-[11px] text-[#454652]">Timetables & Hall Tickets</p>
             </div>
 
             <div className="p-4 bg-[#e6f6ff] rounded-xl border border-[#dbf1fe]">
               <span className="text-[11px] font-bold text-[#454652] uppercase">Academic</span>
-              <p className="text-[22px] font-extrabold text-[#2b5bb5]">56 Notices</p>
+              <p className="text-[22px] font-extrabold text-[#2b5bb5]">{categoryCounts.academic} Notices</p>
               <p className="text-[11px] text-[#454652]">Syllabus & Coursework</p>
             </div>
 
             <div className="p-4 bg-[#e6f6ff] rounded-xl border border-[#dbf1fe]">
               <span className="text-[11px] font-bold text-[#454652] uppercase">Department Events</span>
-              <p className="text-[22px] font-extrabold text-emerald-700">30 Notices</p>
+              <p className="text-[22px] font-extrabold text-emerald-700">{categoryCounts.events} Notices</p>
               <p className="text-[11px] text-[#454652]">Hackathons & Workshops</p>
             </div>
 
             <div className="p-4 bg-[#ffdad6]/40 rounded-xl border border-[#ffb4ab]">
-              <span className="text-[11px] font-bold text-[#93000a] uppercase">Emergency Directives</span>
-              <p className="text-[22px] font-extrabold text-[#ba1a1a]">20 Directives</p>
+              <span className="text-[11px] font-bold text-[#93000a] uppercase">Urgent Notices</span>
+              <p className="text-[22px] font-extrabold text-[#ba1a1a]">{categoryCounts.urgent} Notices</p>
               <p className="text-[11px] text-[#93000a]">Instant Priority Overrides</p>
             </div>
           </div>

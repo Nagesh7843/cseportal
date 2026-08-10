@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { UserProfile, ViewMode } from '@/types';
-import sitLogo from '@/assets/sit-logo.png';
 
 interface HeaderProps {
   currentProfile: UserProfile | null;
@@ -13,6 +12,8 @@ interface HeaderProps {
   onOpenHelp: () => void;
   onToggleMobileSidebar?: () => void;
   unreadCount?: number;
+  canGoBack?: boolean;
+  onGoBack?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -25,7 +26,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenNotifications,
   onOpenHelp,
   onToggleMobileSidebar,
-  unreadCount = 0
+  unreadCount = 0,
+  canGoBack,
+  onGoBack
 }) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
@@ -43,20 +46,15 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        <div 
-          onClick={() => onNavigate('public-landing')}
-          className="cursor-pointer flex items-center gap-2 group"
-        >
-          <img src={sitLogo} alt="Sharad Institute of Technology" className="h-9 sm:h-11 w-auto object-contain" />
-          <h2 className="text-[18px] sm:text-[22px] font-bold text-[#000666] tracking-tight group-hover:text-[#2b5bb5] transition-colors">
-            CSE Portal
-          </h2>
-          {isLoggedIn && currentProfile && (
-            <span className="text-[10px] bg-[#d9e2ff] text-[#00429c] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide hidden sm:inline-block">
-              {currentProfile.role === 'admin' ? 'Admin Panel' : currentProfile.role === 'hod' ? 'HOD Hub' : currentProfile.role === 'faculty' ? 'Faculty Hub' : 'Student Portal'}
-            </span>
-          )}
-        </div>
+        {canGoBack && onGoBack && (
+          <button
+            onClick={onGoBack}
+            className="p-2 rounded-xl text-[#000666] hover:bg-[#d5ecf8] transition-colors"
+            title="Go Back"
+          >
+            <span className="material-symbols-outlined text-[24px]">arrow_back</span>
+          </button>
+        )}
 
         {/* Global Search Bar */}
         <div className="relative hidden md:block">
@@ -123,9 +121,6 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="text-right hidden sm:block">
                 <p className="text-[13px] font-bold text-[#071e27] leading-none">
                   {currentProfile.name}
-                </p>
-                <p className="text-[10px] text-[#454652] uppercase tracking-wider mt-1 font-semibold">
-                  {currentProfile.roleTitle}
                 </p>
               </div>
               <img

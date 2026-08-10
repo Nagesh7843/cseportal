@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ViewMode, FacultyMember, ActivityLog, StudentRecord } from '@/types';
+import { ActivityLogModal } from '@/components/modals';
 
 interface AdminDashboardProps {
   onNavigate: (view: ViewMode) => void;
@@ -18,33 +19,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   students,
   onOpenQuickNoticeModal
 }) => {
-  const [trendTimeframe, setTrendTimeframe] = useState<'daily' | 'monthly'>('monthly');
-  const [activeChartBarIndex, setActiveChartBarIndex] = useState<number | null>(null);
+  const [showActivityLogModal, setShowActivityLogModal] = useState(false);
 
-  // Simulated chart data
-  const monthlyData = [
-    { label: 'Jan', notices: 42, assignments: 120, height: '40%' },
-    { label: 'Feb', notices: 65, assignments: 180, height: '60%' },
-    { label: 'Mar', notices: 38, assignments: 95, height: '35%' },
-    { label: 'Apr', notices: 88, assignments: 240, height: '85%' },
-    { label: 'May', notices: 52, assignments: 150, height: '50%' },
-    { label: 'Jun', notices: 95, assignments: 290, height: '95%' },
-    { label: 'Jul', notices: 70, assignments: 210, height: '70%' },
-    { label: 'Aug', notices: 48, assignments: 130, height: '45%' },
-  ];
-
-  const dailyData = [
-    { label: 'Mon', notices: 12, assignments: 45, height: '55%' },
-    { label: 'Tue', notices: 18, assignments: 60, height: '75%' },
-    { label: 'Wed', notices: 9, assignments: 30, height: '35%' },
-    { label: 'Thu', notices: 25, assignments: 85, height: '90%' },
-    { label: 'Fri', notices: 14, assignments: 50, height: '60%' },
-    { label: 'Sat', notices: 5, assignments: 15, height: '20%' },
-    { label: 'Sun', notices: 2, assignments: 8, height: '15%' },
-    { label: 'Today', notices: 22, assignments: 72, height: '80%' },
-  ];
-
-  const chartBars = trendTimeframe === 'monthly' ? monthlyData : dailyData;
 
   return (
     <div className="space-y-6">
@@ -109,98 +85,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Trends Chart Section */}
-        <div className="lg:col-span-8 bg-white p-6 rounded-xl shadow-xs border border-[#c6c5d4]">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
-            <div>
-              <h3 className="font-bold text-[20px] text-[#071e27]">Activity Trends</h3>
-              <p className="text-[12px] text-[#454652]">Volume of official notices vs assignments submitted</p>
-            </div>
-            <div className="flex gap-1.5 bg-[#e6f6ff] p-1 rounded-full border border-[#c6c5d4]">
-              <button
-                onClick={() => setTrendTimeframe('daily')}
-                className={`px-4 py-1 rounded-full text-[12px] font-semibold transition-all ${
-                  trendTimeframe === 'daily'
-                    ? 'bg-[#000666] text-white shadow-xs'
-                    : 'text-[#454652] hover:bg-[#cfe6f2]'
-                }`}
-              >
-                Daily
-              </button>
-              <button
-                onClick={() => setTrendTimeframe('monthly')}
-                className={`px-4 py-1 rounded-full text-[12px] font-semibold transition-all ${
-                  trendTimeframe === 'monthly'
-                    ? 'bg-[#000666] text-white shadow-xs'
-                    : 'text-[#454652] hover:bg-[#cfe6f2]'
-                }`}
-              >
-                Monthly
-              </button>
-            </div>
-          </div>
-
-          {/* Simulated Interactive Bar Chart */}
-          <div className="relative h-[280px] w-full bg-[#e6f6ff] rounded-xl overflow-hidden flex items-end justify-between px-6 pb-4 pt-10 border border-[#dbf1fe]">
-            {/* Chart Grid Lines */}
-            <div className="absolute inset-x-0 top-1/4 border-b border-[#c6c5d4]/40 border-dashed"></div>
-            <div className="absolute inset-x-0 top-2/4 border-b border-[#c6c5d4]/40 border-dashed"></div>
-            <div className="absolute inset-x-0 top-3/4 border-b border-[#c6c5d4]/40 border-dashed"></div>
-
-            {/* Bars */}
-            {chartBars.map((bar, idx) => {
-              const isHovered = activeChartBarIndex === idx;
-              return (
-                <div
-                  key={idx}
-                  onMouseEnter={() => setActiveChartBarIndex(idx)}
-                  onMouseLeave={() => setActiveChartBarIndex(null)}
-                  className="flex flex-col items-center gap-2 group cursor-pointer z-10"
-                  style={{ width: `${100 / chartBars.length - 2}%` }}
-                >
-                  {/* Tooltip on hover */}
-                  {isHovered && (
-                    <div className="absolute -top-10 bg-[#071e27] text-white text-[11px] font-bold px-2.5 py-1 rounded-md shadow-lg z-20 whitespace-nowrap animate-in fade-in duration-150">
-                      {bar.label}: {bar.notices} notices • {bar.assignments} assignments
-                    </div>
-                  )}
-
-                  <div className="w-full flex items-end justify-center gap-1 h-[200px]">
-                    {/* Primary Bar (Notices) */}
-                    <div
-                      className={`w-full bg-[#000666] rounded-t-lg transition-all duration-300 ${
-                        isHovered ? 'bg-[#2b5bb5] scale-y-105' : ''
-                      }`}
-                      style={{ height: bar.height }}
-                    ></div>
-                  </div>
-                  <span className="text-[11px] font-semibold text-[#454652]">{bar.label}</span>
-                </div>
-              );
-            })}
-
-            {/* Decorative Trend Line SVG */}
-            <div className="absolute inset-0 opacity-20 pointer-events-none flex items-center justify-center">
-              <svg className="w-full h-32 stroke-[#000666] fill-none stroke-[2]" viewBox="0 0 100 20">
-                <path d="M0,15 Q25,5 50,14 T100,6" />
-              </svg>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-6 mt-5 text-[12px]">
-            <div className="flex items-center gap-2">
-              <div className="w-3.5 h-3.5 rounded-full bg-[#000666]"></div>
-              <span className="font-semibold text-[#454652]">Notices Posted</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3.5 h-3.5 rounded-full bg-[#759efd]"></div>
-              <span className="font-semibold text-[#454652]">Assignments Submitted</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Activities Feed */}
-        <div className="lg:col-span-4 bg-white p-6 rounded-xl shadow-xs border border-[#c6c5d4] flex flex-col justify-between">
+        <div className="lg:col-span-12 bg-white p-6 rounded-xl shadow-xs border border-[#c6c5d4] flex flex-col justify-between">
           <div>
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-[18px] text-[#071e27]">Recent Activities</h3>
@@ -233,7 +118,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
 
           <button
-            onClick={() => onNavigate('bulk-email')}
+            onClick={() => setShowActivityLogModal(true)}
             className="mt-4 text-[#000666] font-semibold text-[13px] hover:underline w-full text-center py-2 bg-[#e6f6ff] hover:bg-[#dbf1fe] rounded-lg transition-colors flex items-center justify-center gap-1"
           >
             <span>View All Logs</span>
@@ -286,7 +171,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <td className="px-4 py-3 text-[#071e27]">{fac.rank}</td>
                       <td className="px-4 py-3 text-right">
                         <button
-                          onClick={() => onToggleFacultyStatus(fac.id)}
+                          onClick={() => onToggleFacultyStatus(String(fac.id))}
                           title="Click to toggle status"
                           className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border transition-transform active:scale-95 ${statusColors}`}
                         >
@@ -308,10 +193,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <div className="z-10 relative">
               <div className="flex items-center gap-2 mb-2">
                 <span className="material-symbols-outlined text-[24px] text-[#759efd]">campaign</span>
-                <h3 className="font-bold text-[18px]">Notice Broadcaster</h3>
+                <h3 className="font-bold text-[18px]">Send Email</h3>
               </div>
               <p className="text-[13px] opacity-85 mb-6 leading-relaxed">
-                Instantly dispatch critical updates to selected student groups or the entire department via email and push notifications.
+                Send updates to selected student groups or the entire department via email and push notifications.
               </p>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -333,18 +218,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </span>
           </div>
 
-          {/* Admin Level Card */}
-          <div className="bg-[#d5ecf8] p-5 rounded-xl border border-[#c6c5d4] flex items-center gap-4 shadow-xs">
-            <div className="w-12 h-12 rounded-full bg-[#1a237e] flex items-center justify-center text-[#8690ee] shrink-0">
-              <span className="material-symbols-outlined text-[26px]">security</span>
-            </div>
-            <div>
-              <h4 className="font-bold text-[14px] text-[#071e27]">Admin Level: Superuser</h4>
-              <p className="text-[12px] text-[#454652]">Full database access enabled. Logs are being recorded.</p>
-            </div>
-          </div>
+
         </div>
       </div>
+      <ActivityLogModal
+        isOpen={showActivityLogModal}
+        onClose={() => setShowActivityLogModal(false)}
+        activities={activities}
+      />
     </div>
   );
 };

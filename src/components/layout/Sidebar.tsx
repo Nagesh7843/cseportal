@@ -1,5 +1,6 @@
 import React from 'react';
 import { ViewMode, UserRole } from '@/types';
+import sitLogo from '@/assets/sit-logo.png';
 
 interface SidebarProps {
   activeView: ViewMode;
@@ -21,6 +22,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const getNavItems = (): { id: ViewMode; label: string; icon: string }[] => {
     if (userRole === 'admin') {
       return [
+        { id: 'public-landing', label: 'Portal Home', icon: 'public' },
         { id: 'dashboard', label: 'Admin Dashboard', icon: 'dashboard' },
         { id: 'notices', label: 'Digital Notices', icon: 'campaign' },
         { id: 'documents', label: 'Document Library', icon: 'folder_open' },
@@ -31,15 +33,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ];
     } else if (userRole === 'hod') {
       return [
+        { id: 'public-landing', label: 'Portal Home', icon: 'public' },
         { id: 'hod-dashboard', label: 'HOD Executive Hub', icon: 'shield' },
         { id: 'notices', label: 'Digital Notices', icon: 'campaign' },
         { id: 'documents', label: 'Document Library', icon: 'folder_open' },
         { id: 'curriculum', label: 'Curriculum', icon: 'menu_book' },
         { id: 'faculty', label: 'Faculty Directory', icon: 'groups' },
         { id: 'students', label: 'Students Directory', icon: 'school' },
+        { id: 'analytics', label: 'System Analytics', icon: 'analytics' },
       ];
     } else if (userRole === 'faculty') {
       return [
+        { id: 'public-landing', label: 'Portal Home', icon: 'public' },
         { id: 'faculty-portal', label: 'Faculty Hub', icon: 'badge' },
         { id: 'notices', label: 'Digital Notices', icon: 'campaign' },
         { id: 'documents', label: 'Document Library', icon: 'folder_open' },
@@ -50,6 +55,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     } else {
       // Student or Public
       return [
+        { id: 'public-landing', label: 'Portal Home', icon: 'public' },
         { id: 'notices', label: 'Digital Notices', icon: 'campaign' },
         { id: 'documents', label: 'Document Library', icon: 'folder_open' },
         { id: 'curriculum', label: 'Curriculum & Syllabus', icon: 'menu_book' },
@@ -85,8 +91,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => handleNavClick('public-landing')}
             className="flex items-center gap-3 cursor-pointer group"
           >
-            <div className="w-10 h-10 bg-[#000666] flex items-center justify-center rounded-xl text-white group-hover:scale-105 transition-transform shadow-md">
-              <span className="material-symbols-outlined text-[24px]">school</span>
+            <div className="shrink-0 group-hover:scale-105 transition-transform">
+              <img src={sitLogo} alt="SIT Logo" className="w-12 h-auto object-contain drop-shadow-md" />
             </div>
             <div>
               <h1 className="font-bold text-[17px] leading-tight text-[#071e27] group-hover:text-[#2b5bb5] transition-colors">
@@ -134,36 +140,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* CTA Section & Module Badge */}
         <div className="mt-auto px-3 pb-3 space-y-2 pt-2 border-t border-[#c6c5d4]">
-          {/* Admin/HOD/Faculty Bulk Email Panel CTA */}
-          {(userRole === 'admin' || userRole === 'hod' || userRole === 'faculty') && (
-            <button
-              onClick={() => handleNavClick('bulk-email')}
-              className={`w-full py-2.5 px-3 rounded-xl font-semibold text-[13px] shadow-md transition-all flex items-center justify-center gap-2 active:scale-95 ${
-                activeView === 'bulk-email'
-                  ? 'bg-[#1a237e] text-white ring-2 ring-[#759efd]'
-                  : 'bg-[#000666] hover:bg-[#1a237e] text-white hover:shadow-lg'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[18px]">mail</span>
-              <span>Bulk Email Panel</span>
-            </button>
-          )}
+
 
           {/* View Switching Quick Links */}
           <div className="space-y-1">
-            <button
-              onClick={() => handleNavClick('public-landing')}
-              className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors ${
-                activeView === 'public-landing'
-                  ? 'bg-[#cfe6f2] text-[#000666]'
-                  : 'text-[#454652] hover:bg-[#d5ecf8]'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[18px]">public</span>
-              <span>Portal Home</span>
-            </button>
 
-            {userRole !== 'public' && (
+            {userRole === 'admin' && (
               <button
                 onClick={() => handleNavClick('settings')}
                 className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors ${

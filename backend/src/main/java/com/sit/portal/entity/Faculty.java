@@ -35,5 +35,6 @@ public class Faculty {
     private String officeHours;
 
     @Column(name = "publications_count")
+    @Builder.Default
     private Integer publicationsCount = 0;
 }

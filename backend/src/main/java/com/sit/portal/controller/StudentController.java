@@ -27,6 +27,12 @@ public class StudentController {
         return ResponseEntity.ok(savedStudent);
     }
 
+    @PostMapping("/bulk")
+    public ResponseEntity<List<Student>> addStudentsBulk(@RequestBody List<Student> students) {
+        List<Student> savedStudents = studentRepository.saveAll(students);
+        return ResponseEntity.ok(savedStudents);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteStudent(@PathVariable Long id) {
         studentRepository.deleteById(id);

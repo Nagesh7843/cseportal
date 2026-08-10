@@ -1,5 +1,5 @@
 export interface ActivityLog {
-  id: string;
+  id?: string | number;
   title: string;
   subtitle: string;
   timeAgo: string;
@@ -10,21 +10,21 @@ export interface ActivityLog {
 }
 
 export interface UploadAsset {
-  id: string;
-  name: string;
+  id?: string | number;
+  title: string;
   category: 'Material' | 'Assignment' | 'Notice' | 'Syllabus';
-  date: string;
+  uploadedAt: string;
   status: 'Published' | 'Pending Review' | 'Archived';
   fileSize?: string;
   downloadUrl?: string;
 }
 
 export interface EmailLog {
-  id: string;
+  id?: string | number;
   subject: string;
   recipientGroup: string;
   recipientCount: number;
-  timestamp: string;
+  sentAt: string;
   status: 'SUCCESS' | 'FAILED' | 'SCHEDULED' | 'SENDING';
   priority: 'URGENT' | 'NORMAL';
   openRate?: string;
@@ -32,7 +32,7 @@ export interface EmailLog {
 }
 
 export interface DepartmentEvent {
-  id: string;
+  id?: string | number;
   title: string;
   dateDay: string;
   dateMonth: string;

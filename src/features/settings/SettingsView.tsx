@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
+import { apiService } from '@/services/api';
 
 export const SettingsView: React.FC = () => {
   const [emailAlerts, setEmailAlerts] = useState(true);
   const [autoSyncDB, setAutoSyncDB] = useState(true);
-  const [fcmPushEnabled, setFcmPushEnabled] = useState(true);
+  const [fcmPushEnabled, setFcmPushEnabled] = useState(false);
   const [smtpHost, setSmtpHost] = useState('smtp.sitcoe.org');
   const [activeDepartment, setActiveDepartment] = useState('CSE');
 
@@ -11,17 +12,55 @@ export const SettingsView: React.FC = () => {
     alert('System preferences and security settings saved successfully.');
   };
 
+  const handlePushToggle = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const isEnabled = e.target.checked;
+    setFcmPushEnabled(isEnabled);
+
+    if (isEnabled) {
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          alert('Notification permission denied by user.');
+          setFcmPushEnabled(false);
+          return;
+        }
+
+        // Register Service Worker
+        const registration = await navigator.serviceWorker.register('/sw.js');
+        await navigator.serviceWorker.ready;
+
+        // Fetch VAPID key from backend
+        const { publicKey } = await apiService.getVapidPublicKey();
+        
+        // Convert URL-safe base64 string to Uint8Array
+        const padding = '='.repeat((4 - publicKey.length % 4) % 4);
+        const base64 = (publicKey + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+          outputArray[i] = rawData.charCodeAt(i);
+        }
+
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: outputArray
+        });
+
+        // Send to backend
+        await apiService.subscribeToWebPush(subscription.toJSON());
+        alert('Web Push notifications enabled successfully! Your device will now receive background notifications.');
+
+      } catch (err: any) {
+        console.error('Push subscription failed', err);
+        alert('Failed to enable push notifications: ' + err.message);
+        setFcmPushEnabled(false);
+      }
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-4xl">
-      <div className="bg-[#000666] text-white p-6 rounded-2xl shadow-md">
-        <h1 className="text-[24px] font-extrabold flex items-center gap-2">
-          <span className="material-symbols-outlined text-[28px] text-[#759efd]">settings</span>
-          Portal Configuration & Security Audit
-        </h1>
-        <p className="text-[#cfe6f2] text-[13px] mt-1">
-          Configure multi-department settings, SMTP credentials, FCM push permissions, and system security logs.
-        </p>
-      </div>
+
 
       {/* Multi-Department Expansion Setup */}
       <div className="bg-white p-6 rounded-2xl border border-[#c6c5d4] shadow-xs space-y-4">
@@ -30,7 +69,7 @@ export const SettingsView: React.FC = () => {
           Department Scope Configuration
         </h3>
         <p className="text-[12px] text-[#454652]">
-          Select active department scope or enable multi-department cross-broadcast capability.
+          Select active department scope or enable multi-department announcements.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
@@ -86,13 +125,13 @@ export const SettingsView: React.FC = () => {
           <h3 className="font-bold text-[16px] text-[#071e27]">Automated Services & FCM Push</h3>
           <label className="flex items-center justify-between p-3 bg-[#e6f6ff] rounded-xl cursor-pointer">
             <div>
-              <p className="font-bold text-[13px] text-[#071e27]">Firebase Cloud Messaging (FCM) Push Service</p>
-              <p className="text-[11px] text-[#454652]">Dispatch instant web push notifications when urgent notices are published</p>
+              <p className="font-bold text-[13px] text-[#071e27]">Background Web Push Notifications</p>
+              <p className="text-[11px] text-[#454652]">Receive native OS notifications even when browser is closed</p>
             </div>
             <input
               type="checkbox"
               checked={fcmPushEnabled}
-              onChange={(e) => setFcmPushEnabled(e.target.checked)}
+              onChange={handlePushToggle}
               className="w-5 h-5 text-[#000666]"
             />
           </label>
@@ -130,7 +169,7 @@ export const SettingsView: React.FC = () => {
           <div className="space-y-2 text-[12px]">
             <div className="p-3 bg-[#f3faff] rounded-xl border border-[#c6c5d4] flex justify-between items-center">
               <div>
-                <p className="font-bold text-[#071e27]">Notice Category Published: Exam Directive</p>
+                <p className="font-bold text-[#071e27]">Notice Category: Exam</p>
                 <p className="text-[11px] text-[#454652]">Author: Dr. S. S. Gurav (HOD)</p>
               </div>
               <span className="text-[10px] text-[#767683]">Today, 11:20 AM</span>

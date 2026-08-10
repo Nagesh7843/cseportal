@@ -1,10 +1,10 @@
 export type AcademicYear = 'FE' | 'SE' | 'TE' | 'BE';
 export type Division = 'Div A' | 'Div B' | 'Div C';
-export type BatchGroup = 'B1' | 'B2' | 'B3';
+export type BatchGroup = 'A1' | 'A2' | 'A3' | 'B1' | 'B2' | 'B3' | 'C1' | 'C2' | 'C3';
 export type DepartmentCode = 'CSE' | 'IT' | 'E&TC' | 'AI&DS';
 
 export interface FacultyMember {
-  id: string;
+  id?: string | number;
   name: string;
   specialization: string;
   rank: string;
@@ -23,12 +23,12 @@ export interface FacultyMember {
 }
 
 export interface StudentRecord {
-  id: string;
+  id?: string | number;
   name: string;
   rollNo: string;
-  attendance: number;
+  prn: string;
   gpa: number;
-  batch: string;
+  cohortBatch: string;
   email: string;
   avatarBg?: string;
   initials?: string;

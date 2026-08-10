@@ -48,7 +48,7 @@ export const NoticeFeedView: React.FC<NoticeFeedViewProps> = ({
             SIT CSE Official Central Notice Board
           </h1>
           <p className="text-[#cfe6f2] text-[13px] max-w-2xl">
-            Authenticated departmental circulars, examination directives, auto-expiring announcements, and emergency notices.
+            Departmental circulars, exam updates, announcements, and urgent notices.
           </p>
         </div>
 
@@ -143,7 +143,7 @@ export const NoticeFeedView: React.FC<NoticeFeedViewProps> = ({
                       <button
                         onClick={() => {
                           if (confirm(`Are you sure you want to delete notice "${notice.title}"?`)) {
-                            onDeleteNotice(notice.id);
+                            onDeleteNotice(String(notice.id));
                           }
                         }}
                         className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -158,7 +158,7 @@ export const NoticeFeedView: React.FC<NoticeFeedViewProps> = ({
                 <h3
                   onClick={() => {
                     setSelectedNotice(notice);
-                    if (!isRead) onMarkAsRead(notice.id);
+                    if (!isRead) onMarkAsRead(String(notice.id));
                   }}
                   className="font-extrabold text-[18px] text-[#071e27] hover:text-[#000666] transition-colors cursor-pointer leading-snug mb-2"
                 >
@@ -170,39 +170,18 @@ export const NoticeFeedView: React.FC<NoticeFeedViewProps> = ({
                 </p>
               </div>
 
-              {/* Target Audience Badges & Footer */}
-              <div className="pt-3 border-t border-[#c6c5d4]/40 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-[12px]">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[#767683] text-[11px] font-bold">Target Audience:</span>
-                  {notice.targetAudience?.academicYear?.map((y) => (
-                    <span key={y} className="bg-[#e6f6ff] text-[#000666] text-[10px] font-bold px-2 py-0.5 rounded border border-[#c6c5d4]">
-                      {y}
-                    </span>
-                  ))}
-                  {notice.targetAudience?.division?.map((d) => (
-                    <span key={d} className="bg-[#e6f6ff] text-[#2b5bb5] text-[10px] font-bold px-2 py-0.5 rounded border border-[#c6c5d4]">
-                      {d}
-                    </span>
-                  ))}
-                  {notice.targetAudience?.batchGroup?.map((b) => (
-                    <span key={b} className="bg-[#e6f6ff] text-[#003909] text-[10px] font-bold px-2 py-0.5 rounded border border-[#c6c5d4]">
-                      {b}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+              {/* Footer */}
+              <div className="pt-3 border-t border-[#c6c5d4]/40 flex flex-col sm:flex-row justify-end items-start sm:items-center gap-3 text-[12px]">
                   <span className="text-[11px] text-[#454652]">By <strong>{notice.authorName}</strong> ({notice.authorRole})</span>
                   <button
                     onClick={() => {
                       setSelectedNotice(notice);
-                      if (!isRead) onMarkAsRead(notice.id);
+                      if (!isRead) onMarkAsRead(String(notice.id));
                     }}
                     className="text-[#000666] font-bold text-[12px] hover:underline"
                   >
-                    Read Full Directive
+                    Read Full Notice
                   </button>
-                </div>
               </div>
             </div>
           );
@@ -253,7 +232,7 @@ export const NoticeFeedView: React.FC<NoticeFeedViewProps> = ({
                     <div key={att.id} className="p-3 bg-[#e6f6ff] rounded-xl border border-[#c6c5d4] flex items-center justify-between">
                       <div className="flex items-center gap-2 text-[13px] font-bold text-[#071e27]">
                         <span className="material-symbols-outlined text-[#000666]">picture_as_pdf</span>
-                        <span>{att.name}</span>
+                        <span>{att.title}</span>
                       </div>
                       <button className="text-[#000666] font-bold text-[12px] hover:underline flex items-center gap-1">
                         <span>Download</span>
@@ -270,7 +249,7 @@ export const NoticeFeedView: React.FC<NoticeFeedViewProps> = ({
                 <button
                   onClick={() => {
                     if (confirm(`Are you sure you want to delete notice "${selectedNotice.title}"?`)) {
-                      onDeleteNotice(selectedNotice.id);
+                      onDeleteNotice(String(selectedNotice.id));
                       setSelectedNotice(null);
                     }
                   }}

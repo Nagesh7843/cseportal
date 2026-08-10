@@ -497,6 +497,45 @@
 					"response": []
 				},
 				{
+					"name": "Bulk Add Students",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "[\n  {\n    \"rollNo\": \"2024CSE046\",\n    \"academicYear\": \"TE\",\n    \"division\": \"Div A\",\n    \"batchGroup\": \"B2\",\n    \"cohortBatch\": \"2023 - 2027\",\n    \"attendance\": 92.5,\n    \"gpa\": 3.85,\n    \"status\": \"Active\"\n  }\n]"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/students/bulk",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"students",
+								"bulk"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Delete Student Record",
 					"request": {
 						"auth": {
@@ -776,6 +815,78 @@
 								"v1",
 								"notifications",
 								"register-token"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "📋 9. Activity Logs Module",
+			"item": [
+				{
+					"name": "Get All Activity Logs",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/activities",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"activities"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Activity Log",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Notice Published\",\n  \"subtitle\": \"Target: TE\",\n  \"icon\": \"campaign\",\n  \"type\": \"notice\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/activities",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"activities"
 							]
 						}
 					},

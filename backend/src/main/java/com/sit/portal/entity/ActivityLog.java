@@ -24,16 +24,21 @@ public class ActivityLog {
     private String subtitle;
 
     @Column(name = "time_ago")
+    @Builder.Default
     private String timeAgo = "Just now";
 
+    @Builder.Default
     private String icon = "campaign";
 
+    @Builder.Default
     private String type = "notice";
 
     @Column(name = "color_bg")
+    @Builder.Default
     private String colorBg = "bg-[#d9e2ff]";
 
     @Column(name = "color_icon")
+    @Builder.Default
     private String colorIcon = "text-[#00429c]";
 
     @Column(name = "created_at", insertable = false, updatable = false)

@@ -1,26 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StudentRecord, AcademicYear, Division, BatchGroup } from '@/types';
 
 interface AddStudentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddStudent: (student: StudentRecord) => void;
+  onAddStudentsBulk?: (students: StudentRecord[]) => void;
 }
 
 export const AddStudentModal: React.FC<AddStudentModalProps> = ({
   isOpen,
   onClose,
-  onAddStudent
+  onAddStudent,
+  onAddStudentsBulk
 }) => {
+  const [mode, setMode] = useState<'single' | 'bulk'>('single');
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvError, setCsvError] = useState('');
   const [studentName, setStudentName] = useState('');
   const [studentRollNo, setStudentRollNo] = useState('');
   const [studentEmail, setStudentEmail] = useState('');
   const [studentBatch, setStudentBatch] = useState('2024-2028');
   const [academicYear, setAcademicYear] = useState<AcademicYear>('SE');
   const [division, setDivision] = useState<Division>('Div A');
-  const [batchGroup, setBatchGroup] = useState<BatchGroup>('B1');
-  const [studentAttendance, setStudentAttendance] = useState('90');
+  const [batchGroup, setBatchGroup] = useState<BatchGroup>('A1');
+  const [studentPrn, setStudentPrn] = useState('');
   const [studentGpa, setStudentGpa] = useState('3.5');
+
+  useEffect(() => {
+    if (division === 'Div A' && !batchGroup.startsWith('A')) setBatchGroup('A1');
+    if (division === 'Div B' && !batchGroup.startsWith('B')) setBatchGroup('B1');
+    if (division === 'Div C' && !batchGroup.startsWith('C')) setBatchGroup('C1');
+  }, [division]);
 
   if (!isOpen) return null;
 
@@ -28,12 +39,11 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({
     e.preventDefault();
     if (studentName.trim() && studentRollNo.trim()) {
       const newStudent: StudentRecord = {
-        id: `stu-${Date.now()}`,
         name: studentName.trim(),
         rollNo: studentRollNo.trim(),
-        attendance: Math.min(100, Math.max(0, Number(studentAttendance) || 0)),
+        prn: studentPrn,
         gpa: Math.min(4, Math.max(0, Number(studentGpa) || 0)),
-        batch: studentBatch,
+        cohortBatch: studentBatch,
         email: studentEmail.trim() || `${studentRollNo.trim().toLowerCase()}@student.sitcoe.org`,
         avatarBg: 'bg-[#d9e2ff] text-[#00429c]',
         initials: studentName.trim().split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase(),
@@ -49,11 +59,64 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({
       setStudentBatch('2024-2028');
       setAcademicYear('SE');
       setDivision('Div A');
-      setBatchGroup('B1');
-      setStudentAttendance('90');
+      setBatchGroup('A1');
+      setStudentPrn('');
       setStudentGpa('3.5');
       onClose();
     }
+  };
+
+  const handleBulkSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!csvFile || !onAddStudentsBulk) return;
+    
+    setCsvError('');
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (!text) {
+        setCsvError('Failed to read file.');
+        return;
+      }
+      
+      const lines = text.split('\n').filter(line => line.trim());
+      if (lines.length < 2) {
+        setCsvError('File appears empty or missing data rows.');
+        return;
+      }
+      
+      // Assume header: Name, RollNo, Email, AcademicYear, Division, BatchGroup
+      const records: StudentRecord[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const row = lines[i].split(',').map(s => s.trim());
+        if (row.length >= 2 && row[0] && row[1]) {
+          records.push({
+            name: row[0],
+            rollNo: row[1],
+            email: row[2] || `${row[1].toLowerCase()}@student.sitcoe.org`,
+            academicYear: (row[3] as AcademicYear) || 'SE',
+            division: (row[4] as Division) || 'Div A',
+            batchGroup: (row[5] as BatchGroup) || 'A1',
+            prn: '',
+            gpa: 3.5,
+            cohortBatch: '2024-2028',
+            avatarBg: 'bg-[#d9e2ff] text-[#00429c]',
+            initials: row[0].split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase(),
+            status: 'Active'
+          });
+        }
+      }
+      
+      if (records.length === 0) {
+        setCsvError('No valid student records found in CSV.');
+      } else {
+        onAddStudentsBulk(records);
+        setCsvFile(null);
+        setMode('single');
+        onClose();
+      }
+    };
+    reader.readAsText(csvFile);
   };
 
   return (
@@ -61,14 +124,32 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({
       <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#c6c5d4] max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#000666]">person_add</span>
-            <h3 className="font-bold text-[18px] text-[#071e27]">Add Student Record</h3>
+            <span className="material-symbols-outlined text-[#000666]">{mode === 'single' ? 'person_add' : 'group_add'}</span>
+            <h3 className="font-bold text-[18px] text-[#071e27]">Add Student {mode === 'bulk' ? 'Bulk Import' : 'Record'}</h3>
           </div>
           <button onClick={onClose} className="text-[#767683]">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
+        <div className="flex gap-2 p-1 bg-[#e6f6ff] rounded-xl mb-5">
+          <button
+            type="button"
+            onClick={() => setMode('single')}
+            className={`flex-1 py-1.5 text-[12px] font-bold rounded-lg transition-colors ${mode === 'single' ? 'bg-white text-[#000666] shadow-sm' : 'text-[#454652] hover:text-[#000666]'}`}
+          >
+            Single Entry
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('bulk')}
+            className={`flex-1 py-1.5 text-[12px] font-bold rounded-lg transition-colors ${mode === 'bulk' ? 'bg-white text-[#000666] shadow-sm' : 'text-[#454652] hover:text-[#000666]'}`}
+          >
+            Bulk CSV Import
+          </button>
+        </div>
+
+        {mode === 'single' ? (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-[12px] font-bold text-[#454652] uppercase mb-1">Full Name</label>
@@ -101,7 +182,7 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({
                 onChange={(e) => setAcademicYear(e.target.value as AcademicYear)}
                 className="w-full border border-[#c6c5d4] rounded-xl p-3 text-[13px] outline-none font-semibold text-[#071e27]"
               >
-                <option value="FE">First Year (FE)</option>
+
                 <option value="SE">Second Year (SE)</option>
                 <option value="TE">Third Year (TE)</option>
                 <option value="BE">Final Year (BE)</option>
@@ -129,9 +210,27 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({
                 onChange={(e) => setBatchGroup(e.target.value as BatchGroup)}
                 className="w-full border border-[#c6c5d4] rounded-xl p-2.5 text-[12px] outline-none font-semibold text-[#071e27]"
               >
-                <option value="B1">Batch B1</option>
-                <option value="B2">Batch B2</option>
-                <option value="B3">Batch B3</option>
+                {division === 'Div A' && (
+                  <>
+                    <option value="A1">Batch A1</option>
+                    <option value="A2">Batch A2</option>
+                    <option value="A3">Batch A3</option>
+                  </>
+                )}
+                {division === 'Div B' && (
+                  <>
+                    <option value="B1">Batch B1</option>
+                    <option value="B2">Batch B2</option>
+                    <option value="B3">Batch B3</option>
+                  </>
+                )}
+                {division === 'Div C' && (
+                  <>
+                    <option value="C1">Batch C1</option>
+                    <option value="C2">Batch C2</option>
+                    <option value="C3">Batch C3</option>
+                  </>
+                )}
               </select>
             </div>
             <div>
@@ -160,16 +259,17 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[12px] font-bold text-[#454652] uppercase mb-1">Attendance %</label>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                value={studentAttendance}
-                onChange={(e) => setStudentAttendance(e.target.value)}
-                className="w-full border border-[#c6c5d4] rounded-xl p-3 text-[13px] outline-none focus:ring-2 focus:ring-[#000666]"
-              />
+            <div className="md:col-span-1">
+              <label className="block text-[12px] font-bold text-[#454652] uppercase mb-1">PRN Number</label>
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={studentPrn}
+                  onChange={(e) => setStudentPrn(e.target.value)}
+                  placeholder="e.g. 2024CSE12345"
+                  className="w-full h-11 pl-4 pr-4 bg-white border border-[#c3d3d9] rounded-lg text-[14px] text-[#071e27] placeholder-[#7d828a] focus:outline-none focus:border-[#0060df] focus:ring-1 focus:ring-[#0060df] transition-all"
+                />
+              </div>
             </div>
             <div>
               <label className="block text-[12px] font-bold text-[#454652] uppercase mb-1">SGPA (0-4)</label>
@@ -201,6 +301,30 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({
             </button>
           </div>
         </form>
+        ) : (
+        <form onSubmit={handleBulkSubmit} className="space-y-4">
+          <div className="bg-[#f3faff] border border-dashed border-[#000666] rounded-xl p-6 text-center">
+            <span className="material-symbols-outlined text-[32px] text-[#000666] mb-2">upload_file</span>
+            <p className="text-[13px] font-bold text-[#071e27] mb-1">Select a CSV or Excel export file</p>
+            <p className="text-[11px] text-[#454652] mb-4">Format: Name, RollNo, Email, AcademicYear, Division, BatchGroup</p>
+            
+            <input 
+              type="file" 
+              accept=".csv"
+              onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+              className="w-full text-[12px] file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[12px] file:font-bold file:bg-[#e6f6ff] file:text-[#000666] hover:file:bg-[#d9e2ff] cursor-pointer"
+            />
+          </div>
+          {csvError && <p className="text-[12px] text-[#ba1a1a] font-bold">{csvError}</p>}
+          <button
+            type="submit"
+            disabled={!csvFile}
+            className="w-full bg-[#000666] text-white font-bold py-3 rounded-xl text-[14px] hover:bg-[#000444] transition-colors disabled:opacity-50"
+          >
+            Import CSV Data
+          </button>
+        </form>
+        )}
       </div>
     </div>
   );

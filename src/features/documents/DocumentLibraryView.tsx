@@ -3,19 +3,21 @@ import { UploadAsset, ViewMode } from '@/types';
 
 interface DocumentLibraryViewProps {
   uploads: UploadAsset[];
-  onOpenUploadModal: () => void;
+  onOpenUploadModal?: () => void;
   onNavigate: (view: ViewMode) => void;
+  onDeleteDocument?: (id: string | number) => void;
 }
 
 export const DocumentLibraryView: React.FC<DocumentLibraryViewProps> = ({
   uploads,
-  onOpenUploadModal
+  onOpenUploadModal,
+  onDeleteDocument
 }) => {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
   const filteredDocs = uploads.filter((doc) => {
-    const matchesSearch = doc.name.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = doc.title.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = selectedCategory === 'ALL' || doc.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -34,13 +36,15 @@ export const DocumentLibraryView: React.FC<DocumentLibraryViewProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={onOpenUploadModal}
-          className="bg-white text-[#000666] font-bold px-4 py-2.5 rounded-xl text-[13px] hover:bg-[#cfe6f2] transition-colors shadow-xs flex items-center gap-2 shrink-0"
-        >
-          <span className="material-symbols-outlined text-[18px]">cloud_upload</span>
-          <span>Upload New Document</span>
-        </button>
+        {onOpenUploadModal && (
+          <button
+            onClick={onOpenUploadModal}
+            className="bg-white text-[#000666] font-bold px-4 py-2.5 rounded-xl text-[13px] hover:bg-[#cfe6f2] transition-colors shadow-xs flex items-center gap-2 shrink-0"
+          >
+            <span className="material-symbols-outlined text-[18px]">cloud_upload</span>
+            <span>Upload New Document</span>
+          </button>
+        )}
       </div>
 
       {/* Filter & Search */}
@@ -82,7 +86,7 @@ export const DocumentLibraryView: React.FC<DocumentLibraryViewProps> = ({
                 <span className="bg-[#d9e2ff] text-[#00429c] font-bold text-[11px] px-2.5 py-0.5 rounded-full">
                   {doc.category}
                 </span>
-                <span className="text-[11px] text-[#767683]">{doc.date}</span>
+                <span className="text-[11px] text-[#767683]">{doc.uploadedAt}</span>
               </div>
 
               <div className="flex items-start gap-3 mb-4">
@@ -90,7 +94,7 @@ export const DocumentLibraryView: React.FC<DocumentLibraryViewProps> = ({
                   <span className="material-symbols-outlined text-[24px]">description</span>
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-bold text-[15px] text-[#071e27] truncate leading-snug">{doc.name}</h3>
+                  <h3 className="font-bold text-[15px] text-[#071e27] truncate leading-snug">{doc.title}</h3>
                   <p className="text-[12px] text-[#454652] mt-0.5">Size: {doc.fileSize || '3.5 MB'}</p>
                 </div>
               </div>
@@ -100,13 +104,24 @@ export const DocumentLibraryView: React.FC<DocumentLibraryViewProps> = ({
               <span className="text-emerald-600 font-bold text-[11px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                 Verified Asset
               </span>
-              <button
-                onClick={() => alert(`Downloading ${doc.name}...`)}
-                className="px-4 py-1.5 bg-[#000666] text-white rounded-lg font-bold text-[12px] hover:bg-[#1a237e] transition-colors flex items-center gap-1"
-              >
-                <span>Download</span>
-                <span className="material-symbols-outlined text-[16px]">file_download</span>
-              </button>
+              <div className="flex gap-2">
+                {onDeleteDocument && (
+                  <button
+                    onClick={() => onDeleteDocument(doc.id)}
+                    className="p-1.5 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors border border-red-100 flex items-center justify-center"
+                    title="Delete Document"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => alert(`Downloading ${doc.title}...`)}
+                  className="px-4 py-1.5 bg-[#000666] text-white rounded-lg font-bold text-[12px] hover:bg-[#1a237e] transition-colors flex items-center gap-1"
+                >
+                  <span>Download</span>
+                  <span className="material-symbols-outlined text-[16px]">file_download</span>
+                </button>
+              </div>
             </div>
           </div>
         ))}

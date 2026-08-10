@@ -358,6 +358,45 @@
 					"response": []
 				},
 				{
+					"name": "Add Bulk Faculty Members",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "[\n  {\n    \"name\": \"Dr. Jane Doe\",\n    \"email\": \"jane.doe@sitcoe.org.in\",\n    \"specialization\": \"Machine Learning\",\n    \"rank\": \"Professor\",\n    \"designation\": \"Professor\",\n    \"qualification\": \"Ph.D.\",\n    \"teachingExperience\": \"15 Years\",\n    \"industrialExperience\": \"\",\n    \"department\": \"CSE\",\n    \"status\": \"ON CAMPUS\"\n  }\n]"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/faculty/bulk",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"faculty",
+								"bulk"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Update Faculty Presence Status",
 					"request": {
 						"auth": {
@@ -480,7 +519,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"rollNo\": \"2024CSE045\",\n  \"academicYear\": \"TE\",\n  \"division\": \"Div A\",\n  \"batchGroup\": \"B2\",\n  \"cohortBatch\": \"2023 - 2027\",\n  \"attendance\": 92.5,\n  \"gpa\": 3.85,\n  \"status\": \"Active\"\n}"
+							"raw": "{\n  \"rollNo\": \"2024CSE045\",\n  \"name\": \"John Doe\",\n  \"email\": \"johndoe@sitcoe.org.in\",\n  \"academicYear\": \"TE\",\n  \"division\": \"Div A\",\n  \"batchGroup\": \"B2\",\n  \"cohortBatch\": \"2023 - 2027\",\n  \"prn\": \"2024CSE12345\",\n  \"gpa\": 3.85,\n  \"status\": \"Active\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/v1/students",

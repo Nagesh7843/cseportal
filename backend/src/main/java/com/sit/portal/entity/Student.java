@@ -34,8 +34,8 @@ public class Student {
     @Column(name = "cohort_batch", nullable = false)
     private String cohortBatch;
 
-    @Column(nullable = false)
-    private Double attendance;
+    @Column(name = "prn", unique = true, nullable = false)
+    private String prn;
 
     @Column(nullable = false)
     private Double gpa;
@@ -43,5 +43,6 @@ public class Student {
     @Column(nullable = false)
     private String email;
 
+    @Builder.Default
     private String status = "Active";
 }

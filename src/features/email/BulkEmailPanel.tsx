@@ -1,29 +1,37 @@
 import React, { useState } from 'react';
-import { EmailLog, ViewMode, AcademicYear, Division, BatchGroup } from '@/types';
+import { EmailLog, ViewMode, AcademicYear, Division, BatchGroup, FacultyMember } from '@/types';
 
 interface BulkEmailPanelProps {
   emailLogs: EmailLog[];
-  onSendBroadcast: (newLog: EmailLog) => void;
+  facultyList?: FacultyMember[];
+  onSendBroadcast: (newLog: any) => void;
   onNavigate: (view: ViewMode) => void;
+  defaultTargetRole?: 'STUDENT' | 'FACULTY';
 }
 
 export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({
   emailLogs,
+  facultyList = [],
   onSendBroadcast,
-  onNavigate
+  onNavigate,
+  defaultTargetRole = 'STUDENT'
 }) => {
-  const [recipientGroup, setRecipientGroup] = useState('All Students');
+  const [targetRole, setTargetRole] = useState<'STUDENT' | 'FACULTY'>(defaultTargetRole);
   const [priority, setPriority] = useState<'URGENT' | 'NORMAL'>('NORMAL');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [scheduleForLater, setScheduleForLater] = useState(false);
+  const [scheduledTime, setScheduledTime] = useState('');
   const [requestReceipts, setRequestReceipts] = useState(true);
   const [attachments, setAttachments] = useState<{ name: string; size: string }[]>([]);
 
-  // Targeted Audience Filters
-  const [selectedYears, setSelectedYears] = useState<AcademicYear[]>(['SE', 'TE', 'BE']);
-  const [selectedDivs, setSelectedDivs] = useState<Division[]>(['Div A', 'Div B']);
-  const [selectedBatches, setSelectedBatches] = useState<BatchGroup[]>(['B1', 'B2', 'B3']);
+  // Targeted Audience Filters (Students) - Step by step selection
+  const [selectedYears, setSelectedYears] = useState<AcademicYear[]>([]);
+  const [selectedDivs, setSelectedDivs] = useState<Division[]>([]);
+  const [selectedBatches, setSelectedBatches] = useState<BatchGroup[]>([]);
+
+  // Targeted Audience Filters (Faculty)
+  const [selectedFacultyIds, setSelectedFacultyIds] = useState<string[]>([]);
 
   // Sending Simulation State
   const [isSending, setIsSending] = useState(false);
@@ -36,27 +44,44 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({
   const [selectedLog, setSelectedLog] = useState<EmailLog | null>(null);
 
   const toggleYear = (y: AcademicYear) => {
-    setSelectedYears((prev) => (prev.includes(y) ? prev.filter((i) => i !== y) : [...prev, y]));
+    setSelectedYears((prev) => {
+      const next = prev.includes(y) ? prev.filter((i) => i !== y) : [...prev, y];
+      if (next.length === 0) {
+        setSelectedDivs([]);
+        setSelectedBatches([]);
+      }
+      return next;
+    });
   };
 
   const toggleDiv = (d: Division) => {
-    setSelectedDivs((prev) => (prev.includes(d) ? prev.filter((i) => i !== d) : [...prev, d]));
+    setSelectedDivs((prev) => {
+      const next = prev.includes(d) ? prev.filter((i) => i !== d) : [...prev, d];
+      if (next.length === 0) {
+        setSelectedBatches([]);
+      }
+      return next;
+    });
   };
 
   const toggleBatch = (b: BatchGroup) => {
     setSelectedBatches((prev) => (prev.includes(b) ? prev.filter((i) => i !== b) : [...prev, b]));
   };
 
+  const toggleFaculty = (id: string) => {
+    setSelectedFacultyIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
+  };
+
   const applyTemplate = (templateType: 'EXAM' | 'LAB' | 'EVENT' | 'EMERGENCY') => {
     if (templateType === 'EXAM') {
-      setSubject('URGENT DIRECTIVE: End-Semester Examination Schedule & Guidelines');
+      setSubject('Urgent: End-Semester Examination Schedule & Guidelines');
       setMessage(
         `Dear Students,\n\nThe official timetable for End-Semester Examinations is published. Please report 15 minutes before the start time in Hall 3 & Hall 4 with your official hall ticket and identity badge.\n\nBest regards,\nAcademic Coordinator\nCSE Department`
       );
     } else if (templateType === 'LAB') {
       setSubject('NOTICE: Computing Laboratory Maintenance & Hardware Upgrades');
       setMessage(
-        `Dear Students & Staff,\n\nPlease note that CS Lab 2 & 4 will undergo hardware maintenance and GPU workstation updates from Friday 18:00 hrs to Saturday 08:00 hrs.\n\nSystems Administrator`
+        `Dear Students & Staff,\n\nPlease note that Lab will undergo hardware maintenance and GPU workstation updates from Friday 18:00 hrs to Saturday 08:00 hrs.\n\nSystems Administrator`
       );
     } else if (templateType === 'EVENT') {
       setSubject('ANNOUNCEMENT: Department Technical Symposium "Hack-SIT 2024"');
@@ -65,9 +90,9 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({
       );
     } else if (templateType === 'EMERGENCY') {
       setPriority('URGENT');
-      setSubject('[EMERGENCY OVERRIDE] Campus Administrative Alert');
+      setSubject('[URGENT] Campus Administrative Alert');
       setMessage(
-        `ATTENTION ALL STUDENTS AND FACULTY:\n\nImmediate department directive issued. All classes and laboratory sessions stand suspended for today. Monitor official channels for further updates.`
+        `ATTENTION ALL STUDENTS AND FACULTY:\n\nUrgent notice. All classes and laboratory sessions stand suspended for today. Monitor official channels for further updates.`
       );
     }
   };
@@ -90,6 +115,11 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({
       return;
     }
 
+    if (scheduleForLater && !scheduledTime) {
+      alert('Please select a valid date and time for scheduling.');
+      return;
+    }
+
     setIsSending(true);
     setSendProgress(10);
 
@@ -98,26 +128,37 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({
         if (prev >= 100) {
           clearInterval(interval);
           setTimeout(() => {
-            const count = selectedYears.length * 60 + selectedDivs.length * 40;
+            const count = targetRole === 'STUDENT'
+              ? selectedYears.length * 60 + selectedDivs.length * 40
+              : selectedFacultyIds.length; // Use exact manual count
 
-            const newLog: EmailLog = {
-              id: `log-${Date.now()}`,
+            let groupName = '';
+            if (targetRole === 'STUDENT') {
+              groupName = `Students (${selectedYears.join(', ')})`;
+            } else {
+              groupName = `Faculty (Manual Selection: ${selectedFacultyIds.length} members)`;
+            }
+
+            const payload: any = {
+              targetRole: targetRole,
               subject: subject,
-              recipientGroup: `${recipientGroup} (${selectedYears.join(', ')})`,
-              recipientCount: count,
-              timestamp: 'Just now',
-              status: 'SUCCESS',
+              content: message,
               priority: priority,
-              openRate: '88.4%',
-              content: message
+              scheduledAt: scheduleForLater ? scheduledTime : null,
+              filters: {
+                academicYears: targetRole === 'STUDENT' ? selectedYears : [],
+                divisions: targetRole === 'STUDENT' ? selectedDivs : [],
+                batches: targetRole === 'STUDENT' ? selectedBatches : [],
+                facultyIds: targetRole === 'FACULTY' ? selectedFacultyIds : []
+              }
             };
 
-            onSendBroadcast(newLog);
+            onSendBroadcast(payload);
             setIsSending(false);
             setSendProgress(0);
             setSubject('');
             setMessage('');
-            alert(`Broadcast sent successfully to ${count} targeted recipients!`);
+            alert(`Email sent successfully to ${count} recipients!`);
           }, 300);
           return 100;
         }
@@ -126,9 +167,77 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({
     }, 250);
   };
 
-  const generateAiDraft = () => {
+  const generateAiDraft = async () => {
     if (!aiTopic.trim()) return;
     setIsGeneratingAi(true);
+
+    const activeKey = (
+      ((import.meta as any).env?.VITE_GEMINI_API_KEY) ||
+      localStorage.getItem('sit_gemini_api_key') ||
+      ''
+    ).trim();
+
+    if (activeKey) {
+      try {
+        localStorage.setItem('sit_gemini_api_key', activeKey);
+
+        const promptText = `You are an official email drafter for the Computer Science & Engineering (CSE) Department at Sharad Institute of Technology (SIT). Write an official email announcement based on the following topic.\n\nTopic: "${aiTopic.trim()}"\nTarget Audience: ${targetRole}\n\nIMPORTANT: Return ONLY a raw JSON object matching this exact format with no backticks or markdown:\n{\n  "subject": "Professional and concise subject line",\n  "message": "Full professional email body with formal greeting and signature from CSE Department"\n}`;
+
+        // Try gemini-1.5-flash first, fallback to gemini-2.0-flash
+        let response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${activeKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
+        });
+
+        if (!response.ok) {
+          response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${activeKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
+          });
+        }
+
+        const data = await response.json();
+
+        if (!response.ok || data.error) {
+          const errMsg = data?.error?.message || `HTTP ${response.status} Error`;
+          alert(`Gemini API Error: ${errMsg}\n\nPlease check your API key (get a free key at https://aistudio.google.com/app/apikey).`);
+          setIsGeneratingAi(false);
+          return;
+        }
+
+        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const cleanedJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+        let parsed: any = null;
+        try {
+          parsed = JSON.parse(cleanedJson);
+        } catch (pErr) {
+          // If response isn't JSON, use raw text directly
+          setSubject(`Department Announcement: ${aiTopic}`);
+          setMessage(rawText);
+          setIsGeneratingAi(false);
+          setShowAiDraftModal(false);
+          setAiTopic('');
+          return;
+        }
+
+        if (parsed && (parsed.subject || parsed.message)) {
+          setSubject(parsed.subject || `Department Announcement: ${aiTopic}`);
+          setMessage(parsed.message || rawText);
+          setIsGeneratingAi(false);
+          setShowAiDraftModal(false);
+          setAiTopic('');
+          return;
+        }
+      } catch (err: any) {
+        console.error('Gemini API call error:', err);
+        alert(`Failed to connect to Gemini API: ${err.message || 'Network Error'}`);
+        setIsGeneratingAi(false);
+        return;
+      }
+    }
 
     setTimeout(() => {
       if (aiTopic.toLowerCase().includes('exam') || aiTopic.toLowerCase().includes('schedule')) {
@@ -150,7 +259,7 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({
       setIsGeneratingAi(false);
       setShowAiDraftModal(false);
       setAiTopic('');
-    }, 600);
+    }, 500);
   };
 
   return (
@@ -160,10 +269,14 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-[28px] text-[#759efd]">mail</span>
-            <h1 className="text-[24px] font-extrabold tracking-tight">Targeted Bulk Email Dispatcher</h1>
+            <h1 className="text-[24px] font-extrabold tracking-tight">
+              {targetRole === 'STUDENT' ? 'Student Email' : 'Faculty Email'}
+            </h1>
           </div>
           <p className="text-[#cfe6f2] text-[13px] mt-1">
-            Broadcast targeted announcements by Academic Year, Division, and Batch Group with SMTP audit tracking.
+            {targetRole === 'STUDENT'
+              ? 'Send announcements by Academic Year, Division, and Batch Group.'
+              : 'Send official communications securely to the entire department faculty and staff.'}
           </p>
         </div>
 
@@ -176,17 +289,11 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({
         </button>
       </div>
 
-      {/* Main Grid: Composer & Sidebar Stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {/* Composer Card */}
-        <div className="lg:col-span-8 bg-white p-6 rounded-2xl border border-[#c6c5d4] shadow-xs space-y-6">
+        <div className="bg-white p-6 rounded-2xl border border-[#c6c5d4] shadow-xs space-y-6">
           <div className="flex justify-between items-center border-b border-[#c6c5d4] pb-4">
-            <h2 className="font-bold text-[18px] text-[#071e27]">Compose Department Broadcast</h2>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-semibold text-[#454652] bg-[#e6f6ff] px-2.5 py-1 rounded-full">
-                SMTP Relay Ready
-              </span>
-            </div>
+            <h2 className="font-bold text-[18px] text-[#071e27]">Compose Email</h2>
           </div>
 
           {/* Quick Pre-built Templates */}
@@ -221,80 +328,145 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({
                 onClick={() => applyTemplate('EMERGENCY')}
                 className="px-3 py-1.5 bg-[#ffdad6] text-[#ba1a1a] text-[12px] font-bold rounded-lg border border-[#ffb4ab] hover:bg-[#ffb4ab]/40 transition-colors"
               >
-                Emergency Override
+                Urgent Notice
               </button>
             </div>
           </div>
 
           {/* Targeted Audience Selector Panel */}
           <div className="bg-[#e6f6ff] p-4 rounded-xl border border-[#dbf1fe] space-y-3">
-            <h4 className="text-[12px] font-bold text-[#000666] uppercase tracking-wider flex items-center gap-1.5">
+            <h4 className="text-[12px] font-bold text-[#000666] uppercase tracking-wider flex items-center gap-1.5 mb-2">
               <span className="material-symbols-outlined text-[16px]">groups</span>
-              Target Audience Filter Selection
+              Target Audience: {targetRole === 'STUDENT' ? 'Students' : 'All Faculty'}
             </h4>
 
-            {/* Academic Year Selection */}
-            <div>
-              <p className="text-[11px] font-semibold text-[#454652] mb-1">Academic Years:</p>
-              <div className="flex flex-wrap gap-2">
-                {(['FE', 'SE', 'TE', 'BE'] as AcademicYear[]).map((y) => (
-                  <button
-                    type="button"
-                    key={y}
-                    onClick={() => toggleYear(y)}
-                    className={`px-3 py-1 rounded-lg text-[12px] font-bold border transition-colors ${
-                      selectedYears.includes(y)
-                        ? 'bg-[#000666] text-white border-[#000666]'
-                        : 'bg-white text-[#454652] border-[#c6c5d4]'
-                    }`}
-                  >
-                    {y}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* Student Filters */}
+            {targetRole === 'STUDENT' && (
+              <div className="space-y-4 pt-2">
+                {/* Step 1: Academic Year Selection */}
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="w-5 h-5 rounded-full bg-[#000666] text-white text-[11px] font-bold flex items-center justify-center">1</span>
+                    <p className="text-[12px] font-bold text-[#454652]">Step 1: Select Academic Years</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pl-7">
+                    {(['FE', 'SE', 'TE', 'BE'] as AcademicYear[]).map((y) => (
+                      <button
+                        type="button"
+                        key={y}
+                        onClick={() => toggleYear(y)}
+                        className={`px-3 py-1 rounded-lg text-[12px] font-bold border transition-colors ${selectedYears.includes(y)
+                          ? 'bg-[#000666] text-white border-[#000666]'
+                          : 'bg-white text-[#454652] border-[#c6c5d4]'
+                          }`}
+                      >
+                        {y}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            {/* Division Selection */}
-            <div>
-              <p className="text-[11px] font-semibold text-[#454652] mb-1">Divisions:</p>
-              <div className="flex flex-wrap gap-2">
-                {(['Div A', 'Div B', 'Div C'] as Division[]).map((d) => (
-                  <button
-                    type="button"
-                    key={d}
-                    onClick={() => toggleDiv(d)}
-                    className={`px-3 py-1 rounded-lg text-[12px] font-bold border transition-colors ${
-                      selectedDivs.includes(d)
-                        ? 'bg-[#2b5bb5] text-white border-[#2b5bb5]'
-                        : 'bg-white text-[#454652] border-[#c6c5d4]'
-                    }`}
-                  >
-                    {d}
-                  </button>
-                ))}
-              </div>
-            </div>
+                {/* Step 2: Division Selection */}
+                {selectedYears.length > 0 ? (
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="w-5 h-5 rounded-full bg-[#2b5bb5] text-white text-[11px] font-bold flex items-center justify-center">2</span>
+                      <p className="text-[12px] font-bold text-[#454652]">Step 2: Select Divisions</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pl-7">
+                      {(['Div A', 'Div B', 'Div C'] as Division[]).map((d) => (
+                        <button
+                          type="button"
+                          key={d}
+                          onClick={() => toggleDiv(d)}
+                          className={`px-3 py-1 rounded-lg text-[12px] font-bold border transition-colors ${selectedDivs.includes(d)
+                            ? 'bg-[#2b5bb5] text-white border-[#2b5bb5]'
+                            : 'bg-white text-[#454652] border-[#c6c5d4]'
+                            }`}
+                        >
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-[#767683] italic pl-7">Select an academic year above to see division options.</p>
+                )}
 
-            {/* Batch Selection */}
-            <div>
-              <p className="text-[11px] font-semibold text-[#454652] mb-1">Batches:</p>
-              <div className="flex flex-wrap gap-2">
-                {(['B1', 'B2', 'B3'] as BatchGroup[]).map((b) => (
-                  <button
-                    type="button"
-                    key={b}
-                    onClick={() => toggleBatch(b)}
-                    className={`px-3 py-1 rounded-lg text-[12px] font-bold border transition-colors ${
-                      selectedBatches.includes(b)
-                        ? 'bg-[#003909] text-[#a3f69c] border-[#003909]'
-                        : 'bg-white text-[#454652] border-[#c6c5d4]'
-                    }`}
-                  >
-                    Batch {b}
-                  </button>
-                ))}
+                {/* Step 3: Batch Selection */}
+                {selectedDivs.length > 0 ? (
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="w-5 h-5 rounded-full bg-[#003909] text-[#a3f69c] text-[11px] font-bold flex items-center justify-center">3</span>
+                      <p className="text-[12px] font-bold text-[#454652]">Step 3: Select Batches (Optional)</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pl-7">
+                      {(['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3'] as BatchGroup[])
+                        .filter(b => {
+                          if (selectedDivs.includes('Div A') && b.startsWith('A')) return true;
+                          if (selectedDivs.includes('Div B') && b.startsWith('B')) return true;
+                          if (selectedDivs.includes('Div C') && b.startsWith('C')) return true;
+                          return false;
+                        })
+                        .map((b) => (
+                          <button
+                            type="button"
+                            key={b}
+                            onClick={() => toggleBatch(b)}
+                            className={`px-3 py-1 rounded-lg text-[12px] font-bold border transition-colors ${selectedBatches.includes(b)
+                              ? 'bg-[#003909] text-[#a3f69c] border-[#003909]'
+                              : 'bg-white text-[#454652] border-[#c6c5d4]'
+                              }`}
+                          >
+                            Batch {b}
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                ) : selectedYears.length > 0 ? (
+                  <p className="text-[11px] text-[#767683] italic pl-7">Select at least one division above to see batch options.</p>
+                ) : null}
               </div>
-            </div>
+            )}
+
+            {/* Faculty Manual Selection */}
+            {targetRole === 'FACULTY' && (
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-semibold text-[#454652] mb-1">Select Faculty Members Manually:</p>
+                  <div className="text-[10px] font-bold text-[#000666] cursor-pointer hover:underline" onClick={() => setSelectedFacultyIds(facultyList.map(f => String(f.id)))}>
+                    Select All
+                  </div>
+                  <div className="text-[10px] font-bold text-red-600 cursor-pointer hover:underline ml-2" onClick={() => setSelectedFacultyIds([])}>
+                    Clear All
+                  </div>
+                </div>
+
+                <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-xl bg-slate-50 p-2 space-y-1">
+                  {facultyList.length === 0 ? (
+                    <div className="text-xs text-slate-500 text-center p-4">No faculty records found.</div>
+                  ) : (
+                    facultyList.map((fac) => (
+                      <label key={fac.id} className="flex items-center gap-3 p-2 hover:bg-white rounded-lg cursor-pointer transition-colors border border-transparent hover:border-slate-200">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 rounded text-[#000666] focus:ring-[#000666]"
+                          checked={selectedFacultyIds.includes(String(fac.id))}
+                          onChange={() => toggleFaculty(String(fac.id))}
+                        />
+                        <div className="flex-1 flex justify-between items-center">
+                          <div>
+                            <p className="text-xs font-bold text-slate-900">{fac.name}</p>
+                            <p className="text-[10px] text-slate-500">{fac.designation || fac.rank || 'Faculty'} • {fac.specialization}</p>
+                          </div>
+                          <span className="text-[10px] font-mono text-slate-400">{fac.email}</span>
+                        </div>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Subject Line & Priority */}
@@ -320,22 +492,20 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({
                 <button
                   type="button"
                   onClick={() => setPriority('NORMAL')}
-                  className={`flex-1 py-2.5 rounded-xl text-[11px] font-bold transition-all ${
-                    priority === 'NORMAL'
-                      ? 'bg-[#d9e2ff] text-[#00429c] ring-2 ring-[#2b5bb5]'
-                      : 'bg-[#f3faff] text-[#454652] border border-[#c6c5d4]'
-                  }`}
+                  className={`flex-1 py-2.5 rounded-xl text-[11px] font-bold transition-all ${priority === 'NORMAL'
+                    ? 'bg-[#d9e2ff] text-[#00429c] ring-2 ring-[#2b5bb5]'
+                    : 'bg-[#f3faff] text-[#454652] border border-[#c6c5d4]'
+                    }`}
                 >
                   NORMAL
                 </button>
                 <button
                   type="button"
                   onClick={() => setPriority('URGENT')}
-                  className={`flex-1 py-2.5 rounded-xl text-[11px] font-bold transition-all ${
-                    priority === 'URGENT'
-                      ? 'bg-[#ffdad6] text-[#ba1a1a] ring-2 ring-[#ba1a1a]'
-                      : 'bg-[#f3faff] text-[#454652] border border-[#c6c5d4]'
-                  }`}
+                  className={`flex-1 py-2.5 rounded-xl text-[11px] font-bold transition-all ${priority === 'URGENT'
+                    ? 'bg-[#ffdad6] text-[#ba1a1a] ring-2 ring-[#ba1a1a]'
+                    : 'bg-[#f3faff] text-[#454652] border border-[#c6c5d4]'
+                    }`}
                 >
                   URGENT
                 </button>
@@ -353,7 +523,7 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({
                 rows={7}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Type your official broadcast content here..."
+                placeholder="Type your email content here..."
                 className="w-full p-4 bg-white text-[13px] text-[#071e27] focus:outline-none resize-none"
               ></textarea>
             </div>
@@ -395,15 +565,26 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({
           {/* Actions */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-4 border-t border-[#c6c5d4]">
             <div className="flex flex-wrap gap-4 text-[13px] text-[#071e27] font-medium">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={scheduleForLater}
-                  onChange={(e) => setScheduleForLater(e.target.checked)}
-                  className="w-4 h-4 rounded text-[#000666]"
-                />
-                <span>Schedule for later</span>
-              </label>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={scheduleForLater}
+                    onChange={(e) => setScheduleForLater(e.target.checked)}
+                    className="w-4 h-4 rounded text-[#000666]"
+                  />
+                  <span>Schedule for later</span>
+                </label>
+
+                {scheduleForLater && (
+                  <input
+                    type="datetime-local"
+                    value={scheduledTime}
+                    onChange={(e) => setScheduledTime(e.target.value)}
+                    className="border border-[#c6c5d4] rounded-lg p-1.5 text-[12px] focus:outline-none focus:ring-1 focus:ring-[#000666]"
+                  />
+                )}
+              </div>
 
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -422,7 +603,7 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({
               className="w-full sm:w-auto px-8 py-3 bg-[#000666] text-white font-bold text-[14px] rounded-xl hover:bg-[#1a237e] transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               <span className="material-symbols-outlined text-[18px]">send</span>
-              <span>{isSending ? 'SENDING...' : 'SEND TARGETED BROADCAST'}</span>
+              <span>{isSending ? 'SENDING...' : 'SEND EMAIL'}</span>
             </button>
           </div>
 
@@ -442,33 +623,6 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({
             </div>
           )}
         </div>
-
-        {/* Transmission Stats Sidebar */}
-        <div className="lg:col-span-4 space-y-6">
-          <div className="bg-white p-6 rounded-2xl border border-[#c6c5d4] shadow-xs space-y-4">
-            <h3 className="font-bold text-[16px] text-[#071e27]">Transmission Performance</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-[#e6f6ff] p-3.5 rounded-xl border border-[#dbf1fe]">
-                <p className="text-[11px] font-bold text-[#454652] uppercase">Success Rate</p>
-                <p className="text-[18px] font-extrabold text-[#000666]">99.4%</p>
-              </div>
-              <div className="bg-[#e6f6ff] p-3.5 rounded-xl border border-[#dbf1fe]">
-                <p className="text-[11px] font-bold text-[#454652] uppercase">Avg Open Rate</p>
-                <p className="text-[18px] font-extrabold text-[#2b5bb5]">88.2%</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-[#d5ecf8] p-5 rounded-2xl border border-[#c6c5d4] space-y-2">
-            <div className="flex items-center gap-2 text-[#000666]">
-              <span className="material-symbols-outlined text-[20px]">verified</span>
-              <h4 className="font-bold text-[14px]">Security & Audit Notice</h4>
-            </div>
-            <p className="text-[12px] text-[#454652] leading-relaxed">
-              Every broadcast dispatch is logged with full recipient lists and timestamped audit receipts.
-            </p>
-          </div>
-        </div>
       </div>
 
       {/* Audit Logs Table */}
@@ -476,11 +630,8 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({
         <div className="flex justify-between items-center mb-4">
           <div>
             <h2 className="font-bold text-[18px] text-[#071e27]">Recent Transmission Audit Logs</h2>
-            <p className="text-[12px] text-[#454652]">Audit records of all departmental email broadcasts</p>
+            <p className="text-[12px] text-[#454652]">History of sent emails</p>
           </div>
-          <span className="text-[12px] font-bold text-[#000666] bg-[#e6f6ff] px-3 py-1 rounded-full">
-            Total Broadcasts: {emailLogs.length}
-          </span>
         </div>
 
         <div className="overflow-x-auto">
@@ -505,14 +656,13 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({
                   <td className="py-3 px-4 font-bold text-[#071e27]">{log.subject}</td>
                   <td className="py-3 px-4 text-[#454652]">{log.recipientGroup}</td>
                   <td className="py-3 px-4 font-semibold text-[#071e27]">{log.recipientCount || 240}</td>
-                  <td className="py-3 px-4 text-[#454652]">{log.timestamp}</td>
+                  <td className="py-3 px-4 text-[#454652]">{log.sentAt}</td>
                   <td className="py-3 px-4">
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                        log.priority === 'URGENT'
-                          ? 'bg-[#ffdad6] text-[#ba1a1a]'
-                          : 'bg-[#d9e2ff] text-[#00429c]'
-                      }`}
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${log.priority === 'URGENT'
+                        ? 'bg-[#ffdad6] text-[#ba1a1a]'
+                        : 'bg-[#d9e2ff] text-[#00429c]'
+                        }`}
                     >
                       {log.priority}
                     </span>
@@ -549,13 +699,21 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({
               </button>
             </div>
 
-            <input
-              type="text"
-              value={aiTopic}
-              onChange={(e) => setAiTopic(e.target.value)}
-              placeholder="e.g. Exam Schedule, Lab Downtime..."
-              className="w-full border rounded-xl p-3 text-[13px] mb-4"
-            />
+            <div className="mb-4">
+              <label className="block text-[11px] font-bold text-[#454652] uppercase mb-1">
+                Announcement Topic / Key Points
+              </label>
+              <input
+                type="text"
+                value={aiTopic}
+                onChange={(e) => setAiTopic(e.target.value)}
+                placeholder="e.g. Schedule for Mid-Term Exams starting next Monday..."
+                className="w-full border border-[#c6c5d4] rounded-xl p-3 text-[13px] outline-none focus:ring-2 focus:ring-[#000666]"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') generateAiDraft();
+                }}
+              />
+            </div>
 
             <div className="flex justify-end gap-2">
               <button
@@ -580,11 +738,13 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-[#c6c5d4]">
             <h3 className="font-bold text-[18px] text-[#071e27] mb-3">Attach Document</h3>
             <input
-              type="text"
-              value={newFileName}
-              onChange={(e) => setNewFileName(e.target.value)}
-              placeholder="Document title (e.g. Circular_2024.pdf)"
-              className="w-full border rounded-xl p-3 text-[13px] mb-4"
+              type="file"
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  setNewFileName(e.target.files[0].name);
+                }
+              }}
+              className="w-full border rounded-xl p-3 text-[13px] mb-4 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#000666] file:text-white hover:file:bg-[#000666]/90 cursor-pointer"
             />
             <div className="flex justify-end gap-2">
               <button
@@ -622,7 +782,7 @@ export const BulkEmailPanel: React.FC<BulkEmailPanelProps> = ({
             <div className="space-y-2 text-[13px] bg-[#e6f6ff] p-4 rounded-xl mb-4">
               <p><strong>Recipients:</strong> {selectedLog.recipientGroup}</p>
               <p><strong>Total Delivered:</strong> {selectedLog.recipientCount || 240}</p>
-              <p><strong>Timestamp:</strong> {selectedLog.timestamp}</p>
+              <p><strong>Timestamp:</strong> {selectedLog.sentAt}</p>
               <p><strong>Open Rate:</strong> {selectedLog.openRate || '88.4%'}</p>
             </div>
 

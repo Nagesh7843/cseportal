@@ -35,7 +35,7 @@ export function AiHelpdeskChatbot({ notices, faculty, students, documents }: AiH
     {
       id: 'msg-welcome',
       sender: 'bot',
-      text: '### 👋 SIT CSE AI Assistant\n\nHow can I help you today? Ask about **faculty location**, **urgent circulars**, **syllabus**, or department events.',
+      text: '### 👋 SIT AI Assistant\n\nHow can I help you today? Ask about **faculty location**, **urgent circulars**, **syllabus**, or department events.',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -130,7 +130,7 @@ export function AiHelpdeskChatbot({ notices, faculty, students, documents }: AiH
             <Bot className="w-5 h-5 text-indigo-400 group-hover:scale-110 transition-transform" />
             <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full" />
           </div>
-          <span className="text-xs font-medium tracking-tight">AI Assistant</span>
+          <span className="text-xs font-bold tracking-tight">SIT AI</span>
           <Sparkles className="w-3.5 h-3.5 text-zinc-400 group-hover:text-indigo-400 transition-colors" />
         </button>
       )}
@@ -147,8 +147,8 @@ export function AiHelpdeskChatbot({ notices, faculty, students, documents }: AiH
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-xs text-zinc-100">SIT CSE AI Assistant</h3>
-                  <span className="text-[10px] text-zinc-400 border border-zinc-700 px-1.5 py-0.2 rounded">Gemini</span>
+                  <h3 className="font-bold text-xs text-zinc-100">SIT AI</h3>
+                  <span className="text-[10px] text-indigo-300 bg-indigo-950 border border-indigo-700 px-1.5 py-0.2 rounded font-semibold">Gemini Powered</span>
                 </div>
               </div>
             </div>

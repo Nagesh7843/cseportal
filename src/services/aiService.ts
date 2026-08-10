@@ -3,10 +3,11 @@ import { NoticeItem, FacultyMember, StudentRecord, UploadAsset } from '@/types';
 
 const getApiKey = (): string => {
   return (
-    (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) ||
     ((import.meta as any).env?.VITE_GEMINI_API_KEY) ||
+    (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) ||
+    localStorage.getItem('sit_gemini_api_key') ||
     ''
-  );
+  ).trim();
 };
 
 export interface ChatMessage {
@@ -16,7 +17,7 @@ export interface ChatMessage {
 
 export const aiService = {
   /**
-   * Advanced multi-turn conversation & context-aware AI assistant.
+   * Advanced multi-turn conversation & context-aware SIT AI assistant.
    */
   async askDepartmentAssistant(
     userQuery: string,
@@ -38,41 +39,60 @@ export const aiService = {
       notices: 'Focus on filtering circulars, urgent notices, submission deadlines, and academic year targets.'
     }[mode];
 
-    const systemPrompt = `You are the minimal, highly intelligent SIT CSE Department AI Assistant at Siddaganga Institute of Technology (SIT).
+    const systemPrompt = `You are SIT AI, the intelligent, helpful official AI Assistant for the Computer Science & Engineering (CSE) Department at Sharad Institute of Technology (SIT).
 ${modeFocus}
 
 LIVE DEPARTMENTAL DATA:
-- Department: Computer Science & Engineering (CSE), SIT Tumakuru
-- Super Administrator & Controller: Nagesh (gnagesh550@gmail.com)
+- Department: Computer Science & Engineering (CSE), SIT
+- Administrator: Nagesh (gnagesh550@gmail.com)
 - Active Faculty Roster (${contextData.faculty.length}): ${contextData.faculty.map(f => `${f.name} [${f.status}] - Spec: ${f.specialization}, Office: ${f.officeHours || '9 AM - 5 PM'}`).join('; ')}
 - Published Circulars (${contextData.notices.length}): ${contextData.notices.map(n => `[${n.priority}] "${n.title}" (Date: ${n.publishedAt})`).join('; ')}
-- Available Study Documents (${contextData.documents.length}): ${contextData.documents.map(d => `${d.name} [${d.category}]`).join('; ')}
+- Available Study Documents (${contextData.documents.length}): ${contextData.documents.map(d => `${d.title} [${d.category}]`).join('; ')}
 
 RESPONSE STYLE RULES:
-1. Be ultra-concise, elegant, and minimal. Avoid fluff or unnecessary greeting preamble.
+1. Be ultra-concise, elegant, and minimal. Introduce yourself as SIT AI when relevant.
 2. Use clean markdown formatting (bold highlights, bullet lists).
 3. If giving faculty status, explicitly state if they are ON CAMPUS, IN LAB, IN MEETING, or OFF CAMPUS.
 4. If asked about circulars or notices, highlight deadlines clearly.`;
 
-    if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
+    if (apiKey) {
       try {
-        const ai = new GoogleGenAI({ apiKey });
         const contents = [
           { role: 'user', parts: [{ text: systemPrompt }] },
           ...history.map(h => ({ role: h.role, parts: [{ text: h.text }] })),
           { role: 'user', parts: [{ text: userQuery }] }
         ];
 
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents
+        // Try gemini-1.5-flash first
+        let res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents })
         });
 
-        if (response && response.text) {
-          return response.text;
+        // Fallback to gemini-2.0-flash if 1.5 endpoint fails
+        if (!res.ok) {
+          res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents })
+          });
         }
-      } catch (err) {
-        console.warn('Gemini API call warning, utilizing advanced local knowledge fallback:', err);
+
+        const data = await res.json();
+
+        if (data.error) {
+          return `⚠️ **SIT AI (Gemini Error)**: ${data.error.message || 'API Key Error'}\n\n*Please verify your Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey) and click the ⚙️ Settings icon in the chat header to update it.*`;
+        }
+
+        const textResult = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (textResult) {
+          return textResult;
+        }
+      } catch (err: any) {
+        console.warn('SIT AI Gemini API connection failed:', err);
+        return `⚠️ **SIT AI Connection Error**: Unable to reach Google Gemini API (${err.message || 'Network error'}).\n\nFallback local response:\n\n` + this.fallbackLocalKnowledgeEngine(userQuery, mode, contextData);
       }
     }
 

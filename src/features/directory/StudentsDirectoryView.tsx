@@ -1,21 +1,81 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StudentRecord, ViewMode, AcademicYear, Division, BatchGroup } from '@/types';
 
 interface StudentsDirectoryViewProps {
   students: StudentRecord[];
-  onAddStudent: () => void;
+  onAddStudent?: () => void;
   onNavigate: (view: ViewMode) => void;
+  onAddStudentsBulk?: (students: StudentRecord[]) => void;
+  onDeleteStudent?: (id: string | number) => void;
 }
 
 export const StudentsDirectoryView: React.FC<StudentsDirectoryViewProps> = ({
   students,
   onAddStudent,
-  onNavigate
+  onNavigate,
+  onAddStudentsBulk,
+  onDeleteStudent
 }) => {
   const [search, setSearch] = useState('');
   const [yearFilter, setYearFilter] = useState<AcademicYear | 'ALL'>('ALL');
   const [divisionFilter, setDivisionFilter] = useState<Division | 'ALL'>('ALL');
   const [batchGroupFilter, setBatchGroupFilter] = useState<BatchGroup | 'ALL'>('ALL');
+  
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (divisionFilter === 'Div A' && batchGroupFilter !== 'ALL' && !batchGroupFilter.startsWith('A')) setBatchGroupFilter('ALL');
+    if (divisionFilter === 'Div B' && batchGroupFilter !== 'ALL' && !batchGroupFilter.startsWith('B')) setBatchGroupFilter('ALL');
+    if (divisionFilter === 'Div C' && batchGroupFilter !== 'ALL' && !batchGroupFilter.startsWith('C')) setBatchGroupFilter('ALL');
+  }, [divisionFilter, batchGroupFilter]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onAddStudentsBulk) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (!text) return;
+      
+      const lines = text.split('\n').filter(line => line.trim());
+      if (lines.length < 2) {
+        alert('File appears empty or missing data rows.');
+        return;
+      }
+      
+      const records: StudentRecord[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const row = lines[i].split(',').map(s => s.trim());
+        if (row.length >= 2 && row[0] && row[1]) {
+          records.push({
+            name: row[0],
+            rollNo: row[1],
+            email: row[2] || `${row[1].toLowerCase()}@student.sitcoe.org`,
+            academicYear: (row[3] as AcademicYear) || 'SE',
+            division: (row[4] as Division) || 'Div A',
+            batchGroup: (row[5] as BatchGroup) || 'A1',
+            prn: row[7] || '',
+            gpa: parseFloat(row[8]) || 3.5,
+            cohortBatch: row[6] || '2024-2028',
+            avatarBg: 'bg-[#d9e2ff] text-[#00429c]',
+            initials: row[0].split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase(),
+            status: 'Active'
+          });
+        }
+      }
+      
+      if (records.length > 0) {
+        onAddStudentsBulk(records);
+      }
+      
+      // Reset input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const filtered = students.filter((s) => {
     const matchesSearch =
@@ -38,24 +98,44 @@ export const StudentsDirectoryView: React.FC<StudentsDirectoryViewProps> = ({
             Student Directory & Academic Roster
           </h1>
           <p className="text-[#cfe6f2] text-[13px] mt-1">
-            Academic Years (FE, SE, TE, BE) • Divisions & Batch Groups • Attendance & GPA Tracking
+            Academic Years (FE, SE, TE, BE) • Divisions & Batch Groups • PRN & GPA Tracking
           </p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          <button
-            onClick={onAddStudent}
-            className="bg-white text-[#000666] font-bold px-4 py-2.5 rounded-xl text-[13px] hover:bg-[#cfe6f2] transition-colors shadow-xs flex items-center gap-2"
-          >
-            <span className="material-symbols-outlined text-[18px]">person_add</span>
-            <span>Add Student</span>
-          </button>
+          {onAddStudent && (
+            <button
+              onClick={onAddStudent}
+              className="bg-white text-[#000666] font-bold px-4 py-2.5 rounded-xl text-[13px] hover:bg-[#cfe6f2] transition-colors shadow-xs flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined text-[18px]">person_add</span>
+              <span>Add Student</span>
+            </button>
+          )}
+          {onAddStudentsBulk && (
+            <>
+              <input 
+                type="file" 
+                accept=".csv" 
+                ref={fileInputRef} 
+                onChange={handleFileUpload} 
+                className="hidden" 
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="bg-[#000666] border-2 border-white text-white font-bold px-4 py-2 rounded-xl text-[13px] hover:bg-white hover:text-[#000666] transition-colors shadow-xs flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[18px]">upload_file</span>
+                <span>Upload CSV</span>
+              </button>
+            </>
+          )}
           <button
             onClick={() => onNavigate('bulk-email')}
             className="bg-[#759efd] text-[#00337c] font-bold px-4 py-2.5 rounded-xl text-[13px] hover:bg-[#b0c6ff] transition-colors shadow-xs flex items-center gap-2"
           >
             <span className="material-symbols-outlined text-[18px]">campaign</span>
-            <span>Broadcast Notice</span>
+            <span>Send Notice</span>
           </button>
         </div>
       </div>
@@ -80,7 +160,7 @@ export const StudentsDirectoryView: React.FC<StudentsDirectoryViewProps> = ({
               className="bg-[#f3faff] border border-[#c6c5d4] rounded-lg px-2.5 py-1.5 text-[12px] text-[#071e27] font-semibold"
             >
               <option value="ALL">All Years</option>
-              <option value="FE">First Year (FE)</option>
+
               <option value="SE">Second Year (SE)</option>
               <option value="TE">Third Year (TE)</option>
               <option value="BE">Final Year (BE)</option>
@@ -111,9 +191,27 @@ export const StudentsDirectoryView: React.FC<StudentsDirectoryViewProps> = ({
               className="bg-[#f3faff] border border-[#c6c5d4] rounded-lg px-2.5 py-1.5 text-[12px] text-[#071e27] font-semibold"
             >
               <option value="ALL">All Batches</option>
-              <option value="B1">Batch B1</option>
-              <option value="B2">Batch B2</option>
-              <option value="B3">Batch B3</option>
+              {(divisionFilter === 'ALL' || divisionFilter === 'Div A') && (
+                <optgroup label="Div A Batches">
+                  <option value="A1">Batch A1</option>
+                  <option value="A2">Batch A2</option>
+                  <option value="A3">Batch A3</option>
+                </optgroup>
+              )}
+              {(divisionFilter === 'ALL' || divisionFilter === 'Div B') && (
+                <optgroup label="Div B Batches">
+                  <option value="B1">Batch B1</option>
+                  <option value="B2">Batch B2</option>
+                  <option value="B3">Batch B3</option>
+                </optgroup>
+              )}
+              {(divisionFilter === 'ALL' || divisionFilter === 'Div C') && (
+                <optgroup label="Div C Batches">
+                  <option value="C1">Batch C1</option>
+                  <option value="C2">Batch C2</option>
+                  <option value="C3">Batch C3</option>
+                </optgroup>
+              )}
             </select>
           </div>
         </div>
@@ -129,7 +227,7 @@ export const StudentsDirectoryView: React.FC<StudentsDirectoryViewProps> = ({
                 <th className="py-3 px-4">Roll Number</th>
                 <th className="py-3 px-4">Academic Year</th>
                 <th className="py-3 px-4">Division & Batch</th>
-                <th className="py-3 px-4">Attendance</th>
+                <th className="py-3 px-4">PRN</th>
                 <th className="py-3 px-4">SGPA</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
@@ -162,19 +260,28 @@ export const StudentsDirectoryView: React.FC<StudentsDirectoryViewProps> = ({
                       </span>
                     </div>
                   </td>
-                  <td className="py-3 px-4 font-semibold text-[#071e27]">{st.attendance}%</td>
+                  <td className="py-3 px-4 font-mono text-[#071e27]">{st.prn}</td>
                   <td className="py-3 px-4">
                     <span className={`font-bold ${st.gpa >= 3.5 ? 'text-emerald-600' : 'text-orange-600'}`}>
                       {st.gpa} / 4.0
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-right">
+                  <td className="py-3 px-4 text-right flex justify-end items-center gap-4">
                     <button
                       onClick={() => onNavigate('bulk-email')}
                       className="text-[#000666] font-bold text-[12px] hover:underline"
                     >
                       Send Notice
                     </button>
+                    {onDeleteStudent && (
+                      <button
+                        onClick={() => onDeleteStudent(st.id)}
+                        className="text-red-600 hover:text-red-800 transition-colors"
+                        title="Delete Student"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

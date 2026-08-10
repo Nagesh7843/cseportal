@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { LABORATORIES } from '@/data';
+import React, { useMemo, useState, useEffect } from 'react';
+import { apiService } from '@/services/api';
 import { ViewMode } from '@/types';
 
 interface ResearchViewProps {
@@ -8,10 +8,16 @@ interface ResearchViewProps {
 
 export const ResearchView: React.FC<ResearchViewProps> = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [laboratories, setLaboratories] = useState<any[]>([]);
+
+  useEffect(() => {
+    apiService.fetchLaboratories().then(setLaboratories).catch(console.error);
+  }, []);
+
   const filteredLabs = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return LABORATORIES.filter((lab) => !query || lab.name.toLowerCase().includes(query) || lab.roomNumber.toLowerCase().includes(query));
-  }, [searchQuery]);
+    return laboratories.filter((lab) => !query || lab.name.toLowerCase().includes(query) || lab.roomNumber.toLowerCase().includes(query));
+  }, [searchQuery, laboratories]);
 
   return (
     <div className="space-y-6">
@@ -23,7 +29,7 @@ export const ResearchView: React.FC<ResearchViewProps> = () => {
           </h1>
           <p className="text-[#cfe6f2] text-[13px] mt-1">Computer Science & Engineering laboratory infrastructure and equipment.</p>
         </div>
-        <div className="bg-white/10 rounded-xl px-4 py-2 text-[13px] font-semibold">{LABORATORIES.length} Laboratories</div>
+        <div className="bg-white/10 rounded-xl px-4 py-2 text-[13px] font-semibold">{laboratories.length} Laboratories</div>
       </div>
 
       <div className="bg-white rounded-2xl border border-[#c6c5d4] shadow-xs overflow-hidden">

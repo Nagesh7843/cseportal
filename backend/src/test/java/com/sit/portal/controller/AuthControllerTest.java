@@ -36,21 +36,14 @@ class AuthControllerTest {
     }
 
     @Test
-    void registersFirstLoginWithNormalisedEmailAndRequestedRole() {
-        User savedUser = User.builder().email("student@sit.ac.in").role("student").build();
+    void rejectsLoginWhenUserDoesNotExist() {
         when(userRepository.findByEmail("student@sit.ac.in")).thenReturn(Optional.empty());
-        when(passwordEncoder.encode("password")).thenReturn("encoded-password");
-        when(userRepository.save(any(User.class))).thenReturn(savedUser);
-        when(jwtUtils.generateToken("student@sit.ac.in", "student")).thenReturn("jwt");
 
         ResponseEntity<?> response = controller.login(Map.of(
                 "email", " Student@SIT.AC.IN ", "password", "password", "role", "student"));
 
-        assertEquals(200, response.getStatusCode().value());
-        assertEquals("jwt", ((Map<?, ?>) response.getBody()).get("token"));
-        verify(userRepository).findByEmail("student@sit.ac.in");
-        verify(userRepository).save(argThat(user -> user.getEmail().equals("student@sit.ac.in")
-                && user.getPassword().equals("encoded-password") && user.getRole().equals("student")));
+        assertEquals(401, response.getStatusCode().value());
+        assertEquals("Invalid credentials or account does not exist.", ((Map<?, ?>) response.getBody()).get("message"));
     }
 
     @Test

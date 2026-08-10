@@ -15,7 +15,7 @@ export interface AudienceTarget {
 }
 
 export interface NoticeItem {
-  id: string;
+  id?: string | number;
   title: string;
   content: string;
   authorName: string;

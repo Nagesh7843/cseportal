@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { ViewMode, UserRole, UserProfile, FacultyMember, ActivityLog, UploadAsset, EmailLog, StudentRecord, NoticeItem } from '@/types';
 import { apiService } from '@/services/api';
-import { COURSES_DATA, DEPARTMENT_EVENTS } from '@/data';
+
 
 import { Sidebar, Header, Footer } from '@/components/layout';
 import { Modals } from '@/components/modals';
+import { Sparkles } from 'lucide-react';
 
 import { AdminDashboard, FacultyDashboard, HodDashboard } from '@/features/dashboard';
 import { PublicLanding } from '@/features/public-landing';
@@ -23,6 +24,7 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [userRole, setUserRole] = useState<UserRole>('public');
   const [currentProfile, setCurrentProfile] = useState<UserProfile | null>(null);
+  const [viewHistory, setViewHistory] = useState<ViewMode[]>([]);
 
   // 100% Database-driven state initialized to empty arrays (No local storage)
   const [facultyList, setFacultyList] = useState<FacultyMember[]>([]);
@@ -31,12 +33,14 @@ export default function App() {
   const [uploads, setUploads] = useState<UploadAsset[]>([]);
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [notices, setNotices] = useState<NoticeItem[]>([]);
+  const [coursesList, setCoursesList] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modals state
   const [showUrgentNotice, setShowUrgentNotice] = useState(false);
   const [showAddNotice, setShowAddNotice] = useState(false);
   const [showAddStudent, setShowAddStudent] = useState(false);
+  const [showAddFaculty, setShowAddFaculty] = useState(false);
   const [showUploadAssignment, setShowUploadAssignment] = useState(false);
   const [showUploadMaterial, setShowUploadMaterial] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -47,12 +51,14 @@ export default function App() {
   // Fetch Database Records on Load (PostgreSQL sitportaldb)
   const loadDatabaseData = async () => {
     try {
-      const [fetchedNotices, fetchedStudents, fetchedFaculty, fetchedEmails, fetchedDocuments] = await Promise.all([
+      const [fetchedNotices, fetchedStudents, fetchedFaculty, fetchedEmails, fetchedDocuments, fetchedActivities, fetchedCourses] = await Promise.all([
         apiService.fetchNotices().catch(() => []),
         apiService.fetchStudents().catch(() => []),
         apiService.fetchFaculty().catch(() => []),
         apiService.fetchEmailLogs().catch(() => []),
         apiService.fetchDocuments().catch(() => []),
+        apiService.fetchActivities().catch(() => []),
+        apiService.fetchCourses().catch(() => []),
       ]);
 
       setNotices(fetchedNotices);
@@ -60,6 +66,8 @@ export default function App() {
       setFacultyList(fetchedFaculty);
       setEmailLogs(fetchedEmails);
       setUploads(fetchedDocuments);
+      setActivities(fetchedActivities);
+      setCoursesList(fetchedCourses);
     } catch (err) {
       console.warn('Database sync warning:', err);
     }
@@ -86,7 +94,7 @@ export default function App() {
   // Authentication & Role Navigation Guard
   const handleProtectedNavigate = (targetView: ViewMode) => {
     const publicViews: ViewMode[] = ['public-landing', 'login', 'curriculum', 'notices', 'faculty', 'documents', 'students'];
-    const adminViews: ViewMode[] = ['analytics', 'bulk-email'];
+    const adminViews: ViewMode[] = ['bulk-email', 'faculty-email'];
 
     if (!isLoggedIn && !publicViews.includes(targetView)) {
       alert('Authentication Required: Please sign in to access this portal section.');
@@ -94,12 +102,45 @@ export default function App() {
       return;
     }
 
-    if (adminViews.includes(targetView) && userRole !== 'admin' && userRole !== 'faculty') {
-      alert('Access Restricted: System analytics and broadcast panels require Administrator or Faculty credentials.');
+    if (targetView === 'settings' && userRole !== 'admin') {
+      alert('Access Restricted: System settings require Administrator credentials.');
+      return;
+    }
+
+    if (targetView === 'analytics' && !['admin', 'hod'].includes(userRole)) {
+      alert('Access Restricted: System analytics require Administrator or HOD credentials.');
+      return;
+    }
+
+    if (adminViews.includes(targetView) && !['admin', 'hod', 'faculty'].includes(userRole)) {
+      alert('Access Restricted: Broadcast panels require Administrator, HOD, or Faculty credentials.');
       return;
     }
     
-    setActiveView(targetView);
+    if (activeView !== targetView) {
+      if (targetView === 'public-landing') {
+        setViewHistory([]);
+      } else {
+        setViewHistory(prev => {
+          // Prevent infinite history loops if they click the same sidebar links
+          const filtered = prev.filter(v => v !== targetView);
+          return [...filtered, activeView];
+        });
+      }
+      setActiveView(targetView);
+    }
+  };
+
+  const handleGoBack = () => {
+    setViewHistory(prev => {
+      if (prev.length === 0) return prev;
+      const newHistory = [...prev];
+      const lastView = newHistory.pop();
+      if (lastView) {
+        setActiveView(lastView);
+      }
+      return newHistory;
+    });
   };
 
   // Login Success Handler (With localStorage Session Persistence)
@@ -110,9 +151,9 @@ export default function App() {
     let profile: UserProfile;
     let defaultView: ViewMode = 'notices';
 
-    if (customProfile && customProfile.name) {
+    if (customProfile) {
       profile = {
-        name: customProfile.name,
+        name: customProfile.name || 'Unknown User',
         roleTitle: customProfile.roleTitle || 'Verified User',
         role: customProfile.role || role,
         avatar: customProfile.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250',
@@ -120,46 +161,23 @@ export default function App() {
         email: customProfile.email || email
       };
       defaultView = role === 'admin' ? 'dashboard' : role === 'hod' ? 'hod-dashboard' : role === 'faculty' ? 'faculty-portal' : 'notices';
-    } else if (role === 'admin') {
-      profile = {
-        name: 'Nagesh',
-        roleTitle: 'Super Administrator & Website Controller',
-        role: 'admin',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250',
-        department: 'Computer Science & Engineering',
-        email: 'gnagesh550@gmail.com'
-      };
-      defaultView = 'dashboard';
-    } else if (role === 'hod') {
-      profile = {
-        name: 'Dr. A. S. Poornima',
-        roleTitle: 'Head of Department (HOD CSE)',
-        role: 'hod',
-        avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=250',
-        department: 'Computer Science & Engineering',
-        email: email || 'poornima@sitcoe.org.in'
-      };
-      defaultView = 'hod-dashboard';
-    } else if (role === 'faculty') {
-      profile = {
-        name: 'Prof. Veena K',
-        roleTitle: 'Assistant Professor',
-        role: 'faculty',
-        avatar: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&q=80&w=250',
-        department: 'Computer Science & Engineering',
-        email: email || 'veena@sitcoe.org.in'
-      };
-      defaultView = 'faculty-portal';
     } else {
       profile = {
-        name: 'Rahul Sharma',
-        roleTitle: 'B.Tech CSE Student',
-        role: 'student',
-        avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=250',
+        name: 'Unknown User',
+        roleTitle: 'Verified User',
+        role: role,
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250',
         department: 'Computer Science & Engineering',
-        email: email || 'rahul@sitcoe.org.in'
+        email: email
       };
-      defaultView = 'notices';
+      defaultView = role === 'admin' ? 'dashboard' : role === 'hod' ? 'hod-dashboard' : role === 'faculty' ? 'faculty-portal' : 'notices';
+    }
+
+    // Seed history so dashboards can always go back to home
+    if ((defaultView as string) !== 'public-landing') {
+      setViewHistory(['public-landing']);
+    } else {
+      setViewHistory([]);
     }
 
     setCurrentProfile(profile);
@@ -180,6 +198,7 @@ export default function App() {
     setIsLoggedIn(false);
     setUserRole('public');
     setCurrentProfile(null);
+    setViewHistory([]);
     setActiveView('public-landing');
   };
 
@@ -209,33 +228,88 @@ export default function App() {
     });
   };
 
+  // Delete Faculty Handler
+  const handleDeleteFaculty = async (id: number | string) => {
+    if (!window.confirm("Are you sure you want to delete this faculty member?")) return;
+    requireAuthAction(async () => {
+      try {
+        await apiService.deleteFaculty(id);
+        setFacultyList((prev) => prev.filter(f => f.id !== id));
+      } catch (err) {
+        console.error("Failed to delete faculty:", err);
+        alert("Failed to delete faculty record.");
+      }
+    });
+  };
+
+  // Delete Student Handler
+  const handleDeleteStudent = async (id: number | string) => {
+    if (!window.confirm("Are you sure you want to delete this student record?")) return;
+    requireAuthAction(async () => {
+      try {
+        await apiService.deleteStudent(id);
+        setStudentsList((prev) => prev.filter(s => s.id !== id));
+      } catch (err) {
+        console.error("Failed to delete student:", err);
+        alert("Failed to delete student record.");
+      }
+    });
+  };
+
+  // Delete Document Handler
+  const handleDeleteDocument = async (id: number | string) => {
+    if (!window.confirm("Are you sure you want to delete this document?")) return;
+    requireAuthAction(async () => {
+      try {
+        await apiService.deleteDocument(id);
+        setUploads((prev) => prev.filter(d => d.id !== id));
+      } catch (err) {
+        console.error("Failed to delete document:", err);
+        alert("Failed to delete document.");
+      }
+    });
+  };
+
   // Notice Handlers (Saves directly to PostgreSQL sitportaldb via REST API)
   const handlePublishNotice = async (newNotice: NoticeItem) => {
     requireAuthAction(async () => {
       try {
         const savedNotice = await apiService.createNotice(newNotice);
         setNotices((prev) => [savedNotice || newNotice, ...prev]);
+        try {
+          const savedAct = await apiService.createActivity({
+            title: `Notice Published: ${newNotice.title}`,
+            subtitle: `Target: ${newNotice.targetAudience?.academicYear?.join(', ') || 'Global Notice Board'}`,
+            icon: 'campaign',
+            type: 'notice',
+          });
+          setActivities((prev) => [savedAct, ...prev]);
+        } catch (e) { console.warn(e) }
         
-        const newAct: ActivityLog = {
-          id: `act-${Date.now()}`,
-          title: `Notice Published: ${newNotice.title}`,
-          subtitle: `Target: ${newNotice.targetAudience.academicYear?.join(', ') || 'All Students'}`,
-          timeAgo: 'Just now',
-          icon: 'campaign',
-          type: 'notice',
-          colorBg: 'bg-[#d9e2ff]',
-          colorIcon: 'text-[#00429c]'
-        };
-        setActivities((prev) => [newAct, ...prev]);
+        alert('Notice published successfully!');
+        
+        // Trigger a browser push notification
+        import('@/utils/fcmService').then(({ fcmService }) => {
+          fcmService.sendPushNotification(
+            `New Notice: ${newNotice.title}`,
+            newNotice.content
+          );
+        });
+        
       } catch (err) {
         alert('Failed to save notice to PostgreSQL database.');
       }
     });
   };
 
-  const handleDeleteNotice = (noticeId: string) => {
-    requireAuthAction(() => {
-      setNotices((prev) => prev.filter((n) => n.id !== noticeId));
+  const handleDeleteNotice = async (noticeId: string) => {
+    requireAuthAction(async () => {
+      try {
+        await apiService.deleteNotice(noticeId);
+        setNotices((prev) => prev.filter((n) => n.id !== noticeId));
+      } catch (err) {
+        alert('Failed to delete notice from PostgreSQL database.');
+      }
     });
   };
 
@@ -255,47 +329,54 @@ export default function App() {
   };
 
   // Email Broadcast Handler (Saves directly to PostgreSQL sitportaldb)
-  const handleSendBroadcast = async (newLog: EmailLog) => {
+  const handleSendBroadcast = async (payload: any) => {
     requireAuthAction(async () => {
       try {
-        const savedLog = await apiService.sendBroadcast(newLog);
-        setEmailLogs((prev) => [savedLog || newLog, ...prev]);
-        
-        const newAct: ActivityLog = {
-          id: `act-${Date.now()}`,
-          title: `Broadcast: ${newLog.subject}`,
-          subtitle: `To ${newLog.recipientGroup}`,
-          timeAgo: 'Just now',
-          icon: 'campaign',
-          type: 'email',
-          colorBg: 'bg-[#d9e2ff]',
-          colorIcon: 'text-[#00429c]'
-        };
-        setActivities((prev) => [newAct, ...prev]);
+        const savedLog = await apiService.sendBroadcast(payload);
+        setEmailLogs((prev) => [savedLog || payload, ...prev]);
+        try {
+          const savedAct = await apiService.createActivity({
+            title: `Broadcast: ${savedLog.subject}`,
+            subtitle: `To ${savedLog.recipientGroup}`,
+            icon: 'mail',
+            type: 'email',
+          });
+          setActivities((prev) => [savedAct, ...prev]);
+        } catch (e) { console.warn(e) }
       } catch (err) {
         alert('Failed to save broadcast log to database.');
       }
     });
   };
 
-  const handleSendUrgentNotice = (title: string, message: string) => {
+  const handleSendUrgentNotice = (title: string, message: string, file: File | null) => {
     requireAuthAction(() => {
+      const attachments: UploadAsset[] = file ? [{
+        id: `att-${Date.now()}`,
+        title: file.name,
+        category: 'Notice',
+        fileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+        uploadedAt: new Date().toISOString(),
+        status: 'Published',
+        downloadUrl: URL.createObjectURL(file)
+      }] : [];
+
       const urgentNoticeItem: NoticeItem = {
-        id: `notice-urgent-${Date.now()}`,
-        title: `[EMERGENCY DIRECTIVE] ${title}`,
+        title: `[URGENT] ${title}`,
         content: message,
-        authorName: currentProfile?.name || 'Nagesh',
-        authorRole: currentProfile?.roleTitle || 'Super Administrator & Website Controller',
+        authorName: currentProfile?.name || 'Unknown Author',
+        authorRole: currentProfile?.roleTitle || 'Authorized Personnel',
         category: 'Emergency',
         priority: 'URGENT',
         status: 'PUBLISHED',
         targetAudience: { role: ['student', 'faculty'] },
+        attachments,
         publishedAt: 'Just now',
         readBy: [],
         viewsCount: 0
       };
       handlePublishNotice(urgentNoticeItem);
-      alert('EMERGENCY ALERT SAVED DIRECTLY TO POSTGRESQL DATABASE.');
+      alert('Urgent notice published successfully.');
     });
   };
 
@@ -307,7 +388,7 @@ export default function App() {
   const handleAddAsset = async (asset: UploadAsset) => {
     requireAuthAction(async () => {
       try {
-        const savedAsset = await apiService.uploadDocument(asset);
+        const savedAsset = await apiService.createDocument(asset);
         setUploads((prev) => [savedAsset || asset, ...prev]);
       } catch (err) {
         alert('Failed to save document to PostgreSQL database.');
@@ -323,6 +404,42 @@ export default function App() {
         setStudentsList((prev) => [savedStudent || student, ...prev]);
       } catch (err) {
         alert('Failed to save student record to PostgreSQL database.');
+      }
+    });
+  };
+
+  const handleAddStudentsBulk = async (students: StudentRecord[]) => {
+    requireAuthAction(async () => {
+      try {
+        const savedStudents = await apiService.addStudentsBulk(students);
+        setStudentsList((prev) => [...(savedStudents || students), ...prev]);
+        alert(`Successfully imported ${students.length} student records.`);
+      } catch (err) {
+        alert('Failed to bulk import student records to PostgreSQL database.');
+      }
+    });
+  };
+
+  // Add Faculty Handlers
+  const handleAddFaculty = async (faculty: FacultyMember) => {
+    requireAuthAction(async () => {
+      try {
+        const savedFaculty = await apiService.createFaculty(faculty);
+        setFacultyList((prev) => [savedFaculty || faculty, ...prev]);
+      } catch (err) {
+        alert('Failed to save faculty record to PostgreSQL database.');
+      }
+    });
+  };
+
+  const handleAddFacultyBulk = async (facultyList: FacultyMember[]) => {
+    requireAuthAction(async () => {
+      try {
+        const savedFacultyList = await apiService.addFacultyBulk(facultyList);
+        setFacultyList((prev) => [...(savedFacultyList || facultyList), ...prev]);
+        alert(`Successfully imported ${facultyList.length} faculty records.`);
+      } catch (err) {
+        alert('Failed to bulk import faculty records to PostgreSQL database.');
       }
     });
   };
@@ -357,7 +474,30 @@ export default function App() {
           onOpenNotifications={() => requireAuthAction(() => setShowNotifications(true))}
           onOpenHelp={() => setShowHelp(true)}
           onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+          canGoBack={viewHistory.length > 0}
+          onGoBack={handleGoBack}
         />
+
+        {/* Global Updates Ticker */}
+        <div className="px-6 pt-4 max-w-[1440px] w-full mx-auto">
+          <div className="bg-white border border-slate-200 rounded-xl h-10 flex items-center overflow-hidden px-4 text-xs shadow-sm">
+            <span className="font-bold text-zinc-900 uppercase tracking-wider text-[11px] shrink-0 mr-4 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+              Updates
+            </span>
+            <div className="flex-1 overflow-hidden relative">
+              <div className="ticker-animate whitespace-nowrap flex items-center gap-10 text-slate-600 text-[12px]">
+                {notices.length > 0 ? (
+                  notices.map((notice) => (
+                    <span key={notice.id}>• {notice.title}</span>
+                  ))
+                ) : (
+                  <span>• No new updates at this time.</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Dynamic View Container */}
         <main className="flex-1 p-6 max-w-[1440px] w-full mx-auto animate-in fade-in duration-150">
@@ -396,15 +536,16 @@ export default function App() {
               }}
               onMarkAsRead={handleMarkAsRead}
               onOpenPublishModal={() => requireAuthAction(() => setShowPublishNoticeModal(true))}
-              onDeleteNotice={handleDeleteNotice}
+              onDeleteNotice={userRole === 'admin' ? handleDeleteNotice : undefined}
             />
           )}
 
           {activeView === 'documents' && (
             <DocumentLibraryView
               uploads={uploads}
-              onOpenUploadModal={() => requireAuthAction(() => setShowUploadMaterial(true))}
+              onOpenUploadModal={['admin', 'hod', 'faculty'].includes(userRole) ? () => requireAuthAction(() => setShowUploadMaterial(true)) : undefined}
               onNavigate={handleProtectedNavigate}
+              onDeleteDocument={['admin', 'hod', 'faculty'].includes(userRole) ? handleDeleteDocument : undefined}
             />
           )}
 
@@ -413,7 +554,7 @@ export default function App() {
               onNavigate={handleProtectedNavigate}
               uploads={uploads}
               students={studentsList}
-              events={DEPARTMENT_EVENTS}
+              events={[]}
               onOpenAssignmentModal={() => requireAuthAction(() => setShowUploadAssignment(true))}
               onOpenNoticeModal={() => requireAuthAction(() => setShowPublishNoticeModal(true))}
               onOpenMaterialModal={() => requireAuthAction(() => setShowUploadMaterial(true))}
@@ -421,38 +562,55 @@ export default function App() {
           )}
 
           {activeView === 'public-landing' && (
-            <PublicLanding notices={notices} onNavigate={handleProtectedNavigate} />
+            <PublicLanding notices={notices} onNavigate={handleProtectedNavigate} isLoggedIn={isLoggedIn} userRole={userRole} />
           )}
 
           {activeView === 'bulk-email' && (
             <BulkEmailPanel
               emailLogs={emailLogs}
+              facultyList={facultyList}
               onSendBroadcast={handleSendBroadcast}
               onNavigate={handleProtectedNavigate}
+              defaultTargetRole="STUDENT"
+            />
+          )}
+
+          {activeView === 'faculty-email' && (
+            <BulkEmailPanel
+              emailLogs={emailLogs}
+              facultyList={facultyList}
+              onSendBroadcast={handleSendBroadcast}
+              onNavigate={handleProtectedNavigate}
+              defaultTargetRole="FACULTY"
             />
           )}
 
           {activeView === 'curriculum' && (
-            <CurriculumView courses={COURSES_DATA} onNavigate={handleProtectedNavigate} />
+            <CurriculumView courses={coursesList} onNavigate={handleProtectedNavigate} />
           )}
 
           {activeView === 'faculty' && (
             <FacultyDirectoryView
               facultyList={facultyList}
-              onToggleFacultyStatus={handleToggleFacultyStatus}
+              onToggleFacultyStatus={['admin', 'hod'].includes(userRole) ? handleToggleFacultyStatus : undefined}
+              onDeleteFaculty={userRole === 'admin' ? handleDeleteFaculty : undefined}
               onNavigate={handleProtectedNavigate}
+              onAddFaculty={userRole === 'admin' ? () => requireAuthAction(() => setShowAddFaculty(true)) : undefined}
+              onAddFacultyBulk={userRole === 'admin' ? handleAddFacultyBulk : undefined}
             />
           )}
 
           {activeView === 'students' && (
             <StudentsDirectoryView
               students={studentsList}
-              onAddStudent={() => requireAuthAction(() => setShowAddStudent(true))}
+              onAddStudent={userRole === 'admin' ? () => requireAuthAction(() => setShowAddStudent(true)) : undefined}
+              onDeleteStudent={userRole === 'admin' ? handleDeleteStudent : undefined}
               onNavigate={handleProtectedNavigate}
+              onAddStudentsBulk={userRole === 'admin' ? handleAddStudentsBulk : undefined}
             />
           )}
 
-          {activeView === 'analytics' && <AnalyticsView />}
+          {activeView === 'analytics' && <AnalyticsView notices={notices} students={studentsList} emails={emailLogs} />}
 
           {activeView === 'settings' && <SettingsView />}
         </main>
@@ -464,14 +622,19 @@ export default function App() {
       {/* Modals & Triggers */}
       <Modals
         showUrgentNotice={showUrgentNotice}
-        onCloseUrgentNotice={() => setShowUrgentNotice(!showUrgentNotice)}
+        onOpenUrgentNotice={['admin', 'hod', 'faculty'].includes(userRole) ? () => requireAuthAction(() => setShowUrgentNotice(true)) : undefined}
+        onCloseUrgentNotice={() => setShowUrgentNotice(false)}
         onSendUrgentNotice={handleSendUrgentNotice}
         showAddNotice={showAddNotice}
         onCloseAddNotice={() => setShowAddNotice(false)}
-        onAddNotice={handleAddNotice}
+        onAddNotice={(n) => { console.log(n); setShowAddNotice(false); }}
         showAddStudent={showAddStudent}
         onCloseAddStudent={() => setShowAddStudent(false)}
         onAddStudent={handleAddStudent}
+        onAddStudentsBulk={handleAddStudentsBulk}
+        showAddFaculty={showAddFaculty}
+        onCloseAddFaculty={() => setShowAddFaculty(false)}
+        onAddFaculty={handleAddFaculty}
         showUploadAssignment={showUploadAssignment}
         onCloseUploadAssignment={() => setShowUploadAssignment(false)}
         onAddAsset={handleAddAsset}
@@ -487,8 +650,8 @@ export default function App() {
         isOpen={showPublishNoticeModal}
         onClose={() => setShowPublishNoticeModal(false)}
         onPublishNotice={handlePublishNotice}
-        currentUserName={currentProfile?.name || 'Nagesh'}
-        currentUserRoleTitle={currentProfile?.roleTitle || 'Super Administrator & Website Controller'}
+        currentUserName={currentProfile?.name || 'Unknown Author'}
+        currentUserRoleTitle={currentProfile?.roleTitle || 'Authorized Personnel'}
       />
 
       {/* Embedded AI Department Helpdesk & Summarizer Widget */}

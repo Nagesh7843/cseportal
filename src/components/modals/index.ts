@@ -1,8 +1,10 @@
 export * from './UrgentNoticeModal';
 export * from './AddNoticeModal';
 export * from './AddStudentModal';
+export * from './AddFacultyModal';
 export * from './UploadAssetModal';
 export * from './NotificationsDrawer';
 export * from './HelpModal';
+export * from './ActivityLogModal';
 export { ModalsContainer as Modals } from './ModalsContainer';
 export * from './ModalsContainer';

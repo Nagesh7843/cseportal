@@ -10,4 +10,5 @@ import java.util.List;
 public interface StudentRepository extends JpaRepository<Student, Long> {
     List<Student> findByAcademicYear(String academicYear);
     List<Student> findByAcademicYearAndDivision(String academicYear, String division);
+    boolean existsByEmail(String email);
 }

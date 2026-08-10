@@ -16,14 +16,17 @@ public class EmailController {
     @Autowired
     private EmailLogRepository emailLogRepository;
 
+    @Autowired
+    private com.sit.portal.service.EmailService emailService;
+
     @GetMapping("/logs")
     public List<EmailLogEntity> getEmailLogs() {
         return emailLogRepository.findByOrderBySentAtDesc();
     }
 
     @PostMapping("/broadcast")
-    public ResponseEntity<EmailLogEntity> recordBroadcast(@RequestBody EmailLogEntity emailLog) {
-        EmailLogEntity savedLog = emailLogRepository.save(emailLog);
+    public ResponseEntity<EmailLogEntity> recordBroadcast(@RequestBody com.sit.portal.dto.BroadcastRequest request) {
+        EmailLogEntity savedLog = emailService.processBroadcast(request);
         return ResponseEntity.ok(savedLog);
     }
 }

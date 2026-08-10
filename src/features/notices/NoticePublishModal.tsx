@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { NoticeItem, NoticeCategory, NoticePriority, NoticeStatus, AcademicYear, Division, BatchGroup, UploadAsset } from '@/types';
+import React, { useState, useRef } from 'react';
+import { NoticeItem, NoticeCategory, NoticePriority, NoticeStatus, AcademicYear, Division, BatchGroup, UploadAsset, UserRole } from '@/types';
 
 interface NoticePublishModalProps {
   isOpen: boolean;
@@ -27,42 +27,28 @@ export const NoticePublishModal: React.FC<NoticePublishModalProps> = ({
   const [expiryPreset, setExpiryPreset] = useState<'none' | '12h' | '24h' | '3d' | '7d' | 'custom'>('none');
   const [customExpiryDate, setCustomExpiryDate] = useState('');
 
-  // Audience Target Selection
-  const [targetYears, setTargetYears] = useState<AcademicYear[]>(['SE', 'TE', 'BE']);
-  const [targetDivisions, setTargetDivisions] = useState<Division[]>(['Div A', 'Div B']);
-  const [targetBatches, setTargetBatches] = useState<BatchGroup[]>(['B1', 'B2', 'B3']);
-
   // Attachments
   const [attachmentName, setAttachmentName] = useState('');
   const [attachmentsList, setAttachmentsList] = useState<UploadAsset[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
 
-  const toggleYear = (y: AcademicYear) => {
-    setTargetYears((prev) => (prev.includes(y) ? prev.filter((item) => item !== y) : [...prev, y]));
-  };
-
-  const toggleDivision = (d: Division) => {
-    setTargetDivisions((prev) => (prev.includes(d) ? prev.filter((item) => item !== d) : [...prev, d]));
-  };
-
-  const toggleBatch = (b: BatchGroup) => {
-    setTargetBatches((prev) => (prev.includes(b) ? prev.filter((item) => item !== b) : [...prev, b]));
-  };
-
   const handleAddAttachment = () => {
     if (attachmentName.trim()) {
-      const name = attachmentName.endsWith('.pdf') || attachmentName.endsWith('.zip') ? attachmentName : `${attachmentName}.pdf`;
+      const name = attachmentName.includes('.') ? attachmentName : `${attachmentName}.pdf`;
       const newAtt: UploadAsset = {
-        id: `att-${Date.now()}`,
-        name,
+        title: name,
         category: 'Notice',
-        date: 'Today',
+        uploadedAt: new Date().toISOString(),
         status: 'Published',
         fileSize: '2.4 MB'
       };
       setAttachmentsList([...attachmentsList, newAtt]);
       setAttachmentName('');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -99,7 +85,6 @@ export const NoticePublishModal: React.FC<NoticePublishModalProps> = ({
     const expiresAt = calculateExpiresAt();
 
     const newNotice: NoticeItem = {
-      id: `notice-${Date.now()}`,
       title: title.trim(),
       content: content.trim(),
       authorName: currentUserName,
@@ -107,15 +92,11 @@ export const NoticePublishModal: React.FC<NoticePublishModalProps> = ({
       category,
       priority,
       status,
-      targetAudience: {
-        academicYear: targetYears.length > 0 ? targetYears : undefined,
-        division: targetDivisions.length > 0 ? targetDivisions : undefined,
-        batchGroup: targetBatches.length > 0 ? targetBatches : undefined
-      },
+      targetAudience: {},
       attachments: attachmentsList.length > 0 ? attachmentsList : undefined,
-      publishedAt: status === 'PUBLISHED' ? 'Just now' : 'Scheduled',
       scheduledFor: status === 'SCHEDULED' ? scheduledFor : undefined,
       expiresAt,
+      publishedAt: new Date().toISOString(),
       readBy: [],
       viewsCount: 0
     };
@@ -168,7 +149,7 @@ export const NoticePublishModal: React.FC<NoticePublishModalProps> = ({
                 <option value="Academic">Academic</option>
                 <option value="Exam">Examination</option>
                 <option value="Event">Department Event</option>
-                <option value="Emergency">Emergency Directive</option>
+                <option value="Emergency">Urgent Notice</option>
                 <option value="Administrative">Administrative</option>
                 <option value="Placement">Placement Notice</option>
               </select>
@@ -245,86 +226,15 @@ export const NoticePublishModal: React.FC<NoticePublishModalProps> = ({
             )}
           </div>
 
-          {/* Targeted Audience Selector Box */}
-          <div className="bg-[#e6f6ff] p-4 rounded-xl border border-[#dbf1fe] space-y-3">
-            <h4 className="text-[12px] font-bold text-[#000666] uppercase tracking-wider flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[16px]">groups</span>
-              Target Audience Selection
-            </h4>
-
-            {/* Academic Year Checkboxes */}
-            <div>
-              <p className="text-[11px] font-semibold text-[#454652] mb-1.5">Academic Years:</p>
-              <div className="flex flex-wrap gap-2">
-                {(['FE', 'SE', 'TE', 'BE'] as AcademicYear[]).map((y) => (
-                  <button
-                    type="button"
-                    key={y}
-                    onClick={() => toggleYear(y)}
-                    className={`px-3 py-1 rounded-lg text-[12px] font-bold border transition-colors ${
-                      targetYears.includes(y)
-                        ? 'bg-[#000666] text-white border-[#000666]'
-                        : 'bg-white text-[#454652] border-[#c6c5d4]'
-                    }`}
-                  >
-                    {y}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Division Checkboxes */}
-            <div>
-              <p className="text-[11px] font-semibold text-[#454652] mb-1.5">Divisions:</p>
-              <div className="flex flex-wrap gap-2">
-                {(['Div A', 'Div B', 'Div C'] as Division[]).map((d) => (
-                  <button
-                    type="button"
-                    key={d}
-                    onClick={() => toggleDivision(d)}
-                    className={`px-3 py-1 rounded-lg text-[12px] font-bold border transition-colors ${
-                      targetDivisions.includes(d)
-                        ? 'bg-[#2b5bb5] text-white border-[#2b5bb5]'
-                        : 'bg-white text-[#454652] border-[#c6c5d4]'
-                    }`}
-                  >
-                    {d}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Batch Group Checkboxes */}
-            <div>
-              <p className="text-[11px] font-semibold text-[#454652] mb-1.5">Batches:</p>
-              <div className="flex flex-wrap gap-2">
-                {(['B1', 'B2', 'B3'] as BatchGroup[]).map((b) => (
-                  <button
-                    type="button"
-                    key={b}
-                    onClick={() => toggleBatch(b)}
-                    className={`px-3 py-1 rounded-lg text-[12px] font-bold border transition-colors ${
-                      targetBatches.includes(b)
-                        ? 'bg-[#003909] text-[#a3f69c] border-[#003909]'
-                        : 'bg-white text-[#454652] border-[#c6c5d4]'
-                    }`}
-                  >
-                    Batch {b}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
           {/* Content TextArea */}
           <div>
-            <label className="block text-[12px] font-bold text-[#454652] uppercase mb-1">Notice Directive Body</label>
+            <label className="block text-[12px] font-bold text-[#454652] uppercase mb-1">Notice Content</label>
             <textarea
               rows={5}
               required
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Provide detailed information, guidelines, and directives for students..."
+              placeholder="Provide information for students..."
               className="w-full border border-[#c6c5d4] bg-[#f3faff] rounded-xl p-3 text-[13px] text-[#071e27] outline-none focus:ring-2 focus:ring-[#000666]"
             ></textarea>
           </div>
@@ -334,18 +244,21 @@ export const NoticePublishModal: React.FC<NoticePublishModalProps> = ({
             <label className="block text-[12px] font-bold text-[#454652] uppercase mb-1">Notice Attachments</label>
             <div className="flex gap-2 mb-2">
               <input
-                type="text"
-                value={attachmentName}
-                onChange={(e) => setAttachmentName(e.target.value)}
-                placeholder="Attachment title (e.g. Circular_Doc_2024.pdf)"
-                className="flex-1 border border-[#c6c5d4] rounded-xl px-3 py-2 text-[12px] outline-none"
+                type="file"
+                ref={fileInputRef}
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    setAttachmentName(e.target.files[0].name);
+                  }
+                }}
+                className="flex-1 border border-[#c6c5d4] rounded-xl px-3 py-1.5 text-[12px] outline-none file:mr-4 file:py-1.5 file:px-4 file:rounded-full file:border-0 file:text-[11px] file:font-bold file:bg-[#e6f6ff] file:text-[#000666] hover:file:bg-[#d9e2ff] cursor-pointer"
               />
               <button
                 type="button"
                 onClick={handleAddAttachment}
-                className="px-4 py-2 bg-[#e6f6ff] text-[#000666] font-bold text-[12px] rounded-xl border border-[#c6c5d4]"
+                className="px-4 py-2 bg-[#e6f6ff] text-[#000666] font-bold text-[12px] rounded-xl border border-[#c6c5d4] hover:bg-[#d9e2ff] transition-colors"
               >
-                Add File
+                Upload
               </button>
             </div>
 
@@ -354,7 +267,7 @@ export const NoticePublishModal: React.FC<NoticePublishModalProps> = ({
                 {attachmentsList.map((att, idx) => (
                   <span key={idx} className="bg-[#d9e2ff] text-[#00429c] text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-2">
                     <span className="material-symbols-outlined text-[14px]">attach_file</span>
-                    {att.name}
+                    {att.title}
                   </span>
                 ))}
               </div>

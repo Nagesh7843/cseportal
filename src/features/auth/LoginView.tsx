@@ -11,7 +11,7 @@ interface LoginViewProps {
 type AuthenticatedRole = 'admin' | 'hod' | 'faculty' | 'student';
 
 export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onNavigate }) => {
-  const [selectedRole, setSelectedRole] = useState<AuthenticatedRole>('admin');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -19,6 +19,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onNavigate
   const [showGoogleModal, setShowGoogleModal] = useState(false);
   const [googleCustomEmail, setGoogleCustomEmail] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [name, setName] = useState('');
   const [isGsiLoaded, setIsGsiLoaded] = useState(false);
 
   // Read Google Cloud Client ID from .env environment file
@@ -93,41 +95,20 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onNavigate
     }
   }, [showGoogleModal, isGsiLoaded, googleClientId]);
 
-  const handleRoleSwitch = (role: AuthenticatedRole) => {
-    setSelectedRole(role);
-    setEmail('');
-    setPassword('');
-    setErrorMessage('');
-  };
 
-  // Process Real-Time Google Authentication & Map Role Access
-  const executeGoogleAuthWithProfile = (cleanEmail: string, name: string, avatar?: string) => {
+
+  const executeGoogleAuthWithProfile = async (cleanEmail: string, name: string, avatar?: string) => {
     setShowGoogleModal(false);
+    setIsLoading(true);
 
-    let googleRole: UserRole = 'student';
-    let roleTitle = 'Verified Student';
-
-    if (cleanEmail === 'gnagesh550@gmail.com' || cleanEmail.includes('nagesh')) {
-      googleRole = 'admin';
-      roleTitle = 'Super Administrator & Website Controller';
-    } else if (cleanEmail.includes('poornima') || cleanEmail.includes('hod')) {
-      googleRole = 'hod';
-      roleTitle = 'Head of Department (HOD CSE)';
-    } else if (cleanEmail.includes('veena') || cleanEmail.includes('faculty') || cleanEmail.endsWith('@sitcoe.org.in')) {
-      googleRole = 'faculty';
-      roleTitle = 'Assistant Professor';
+    try {
+      const dbUser = await apiService.loginWithGoogle(cleanEmail);
+      setIsLoading(false);
+      onLoginSuccess(dbUser.role, dbUser.email || cleanEmail, dbUser.user || dbUser);
+    } catch (err: any) {
+      setIsLoading(false);
+      setErrorMessage(err.message || 'Google Authentication failed. Please check your credentials or create an account first.');
     }
-
-    const googleProfile: Partial<UserProfile> = {
-      name,
-      roleTitle,
-      role: googleRole,
-      avatar: avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250',
-      department: 'Computer Science & Engineering',
-      email: cleanEmail
-    };
-
-    onLoginSuccess(googleRole, cleanEmail, googleProfile);
   };
 
   const executeGoogleAuth = (selectedEmail: string) => {
@@ -149,34 +130,29 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onNavigate
     setIsLoading(true);
 
     try {
-      // Authenticate & Save User into PostgreSQL sitportaldb via Spring Boot Backend
-      const dbUser = await apiService.loginUser(email.trim(), password.trim(), selectedRole);
-      setIsLoading(false);
-      onLoginSuccess(selectedRole, dbUser.email || email.trim());
+      if (isRegisterMode) {
+        if (!name.trim()) {
+          setErrorMessage('Please enter your full name.');
+          setIsLoading(false);
+          return;
+        }
+        
+        const dbUser = await apiService.registerUser({
+          name: name.trim(),
+          email: email.trim(),
+          password: password.trim(),
+          role: 'student',
+          roleTitle: 'B.Tech Student'
+        });
+        setIsLoading(false);
+        onLoginSuccess('student', dbUser.email || email.trim(), dbUser.user || dbUser);
+      } else {
+        const dbUser = await apiService.loginUser(email.trim(), password.trim());
+        setIsLoading(false);
+        onLoginSuccess(dbUser.role, dbUser.email || email.trim(), dbUser.user || dbUser);
+      }
     } catch (err: any) {
       setIsLoading(false);
-      
-      // Local Fallback Credentials Check for seamless role testing
-      if (selectedRole === 'admin' && (email.trim().toLowerCase() === 'gnagesh550@gmail.com' || email.trim().toLowerCase() === 'nagesh@sitcoe.org.in') && password === 'N@gesh7843') {
-        onLoginSuccess('admin', email.trim());
-        return;
-      }
-
-      if (selectedRole === 'hod') {
-        onLoginSuccess('hod', email.trim());
-        return;
-      }
-
-      if (selectedRole === 'faculty') {
-        onLoginSuccess('faculty', email.trim());
-        return;
-      }
-
-      if (selectedRole === 'student') {
-        onLoginSuccess('student', email.trim());
-        return;
-      }
-      
       setErrorMessage(err.message || 'Authentication failed. Please check your credentials.');
     }
   };
@@ -222,28 +198,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onNavigate
 
           <div className="flex items-center gap-3 my-2">
             <div className="flex-1 h-px bg-slate-200"></div>
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">or sign in with role</span>
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">or sign in with credentials</span>
             <div className="flex-1 h-px bg-slate-200"></div>
-          </div>
-
-          {/* Role Selection Tabs */}
-          <div>
-            <div className="grid grid-cols-4 gap-1 p-1 bg-[#f3faff] rounded-xl border border-[#c6c5d4]">
-              {(['admin', 'hod', 'faculty', 'student'] as AuthenticatedRole[]).map((role) => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => handleRoleSwitch(role)}
-                  className={`py-2 px-1 rounded-lg text-[11px] font-bold uppercase tracking-tight transition-all ${
-                    selectedRole === role
-                      ? 'bg-[#000666] text-white shadow-md'
-                      : 'text-[#454652] hover:text-[#000666]'
-                  }`}
-                >
-                  {role === 'admin' ? 'Admin' : role === 'hod' ? 'HOD' : role === 'faculty' ? 'Faculty' : 'Student'}
-                </button>
-              ))}
-            </div>
           </div>
 
           {errorMessage && (
@@ -253,11 +209,34 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onNavigate
             </div>
           )}
 
-          {/* Login Form */}
+          {/* Login / Register Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            {isRegisterMode && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-[#454652] uppercase tracking-wider mb-1">
+                    Full Name
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required={isRegisterMode}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Enter your full name"
+                      className="w-full bg-[#f3faff] border border-[#c6c5d4] rounded-xl pl-10 pr-4 py-2.5 text-[13px] text-[#071e27] font-semibold outline-none focus:ring-2 focus:ring-[#000666]"
+                    />
+                    <span className="material-symbols-outlined absolute left-3 top-3 text-[18px] text-[#767683]">
+                      badge
+                    </span>
+                  </div>
+                </div>
+
+              </div>
+            )}
             <div>
               <label className="block text-[11px] font-bold text-[#454652] uppercase tracking-wider mb-1">
-                {selectedRole.toUpperCase()} Email Address
+                Email Address
               </label>
               <div className="relative">
                 <input
@@ -311,12 +290,25 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onNavigate
                 <span>Authenticating with Database...</span>
               ) : (
                 <>
-                  <span>SIGN IN AS {selectedRole.toUpperCase()}</span>
-                  <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                  <span>{isRegisterMode ? `CREATE ACCOUNT` : `SIGN IN`}</span>
+                  <span className="material-symbols-outlined text-[18px]">{isRegisterMode ? 'person_add' : 'login'}</span>
                 </>
               )}
             </button>
           </form>
+
+          {/* Toggle Register / Login */}
+          <div className="text-center pt-2">
+            <button
+              onClick={() => {
+                setIsRegisterMode(!isRegisterMode);
+                setErrorMessage('');
+              }}
+              className="text-[#000666] hover:underline text-[12px] font-bold"
+            >
+              {isRegisterMode ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
+            </button>
+          </div>
 
           {/* Back to Portal Link */}
           <div className="pt-2 border-t border-[#c6c5d4]/40 text-center">

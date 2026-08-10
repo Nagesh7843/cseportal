@@ -155,9 +155,9 @@ export const FacultyDashboard: React.FC<FacultyDashboardProps> = ({
                 <tbody className="divide-y divide-[#c6c5d4]/40">
                   {uploads.map((asset) => (
                     <tr key={asset.id} className="hover:bg-[#f3faff] transition-colors">
-                      <td className="py-3 px-3 font-semibold text-[#071e27]">{asset.name}</td>
+                      <td className="py-3 px-3 font-semibold text-[#071e27]">{asset.title}</td>
                       <td className="py-3 px-3 text-[#454652]">{asset.category}</td>
-                      <td className="py-3 px-3 text-[#454652]">{asset.date}</td>
+                      <td className="py-3 px-3 text-[#454652]">{asset.uploadedAt}</td>
                       <td className="py-3 px-3">
                         {asset.status === 'Published' ? (
                           <span className="inline-flex items-center gap-1 text-emerald-600 font-bold text-[11px] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
@@ -218,14 +218,14 @@ export const FacultyDashboard: React.FC<FacultyDashboardProps> = ({
                   </div>
                   <div>
                     <p className="font-bold text-[14px] text-[#071e27]">{st.name}</p>
-                    <p className="text-[11px] text-[#454652]">ID: {st.rollNo} • Batch: {st.batch}</p>
+                    <p className="text-[11px] text-[#454652]">ID: {st.rollNo} • Batch: {st.cohortBatch}</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end">
                   <div className="text-right">
-                    <p className="text-[10px] text-[#454652] uppercase font-bold tracking-wider">Attendance</p>
-                    <p className="text-[13px] font-bold text-[#071e27]">{st.attendance}%</p>
+                    <p className="text-[10px] text-[#454652] uppercase font-bold tracking-wider">PRN</p>
+                    <p className="text-[13px] font-mono text-[#071e27]">{st.prn}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] text-[#454652] uppercase font-bold tracking-wider">GPA</p>
@@ -313,11 +313,11 @@ export const FacultyDashboard: React.FC<FacultyDashboardProps> = ({
               </div>
               <div className="flex justify-between">
                 <span className="text-[#454652]">Batch:</span>
-                <span className="font-semibold text-[#071e27]">{selectedStudent.batch}</span>
+                <span className="font-semibold text-[#071e27]">{selectedStudent.cohortBatch}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#454652]">Attendance Record:</span>
-                <span className="font-bold text-[#071e27]">{selectedStudent.attendance}%</span>
+                <span className="text-[#454652]">PRN:</span>
+                <span className="font-mono text-[#071e27]">{selectedStudent.prn}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-[#454652]">Current Cumulative GPA:</span>

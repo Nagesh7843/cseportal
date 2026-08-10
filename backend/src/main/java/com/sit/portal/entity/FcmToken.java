@@ -28,6 +28,7 @@ public class FcmToken {
     private String token;
 
     @Column(name = "device_type")
+    @Builder.Default
     private String deviceType = "Web Browser";
 
     @Column(name = "created_at", insertable = false, updatable = false)

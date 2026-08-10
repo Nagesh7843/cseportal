@@ -3,6 +3,10 @@ package com.sit.portal.controller;
 import com.sit.portal.config.JwtUtils;
 import com.sit.portal.entity.User;
 import com.sit.portal.repository.UserRepository;
+import com.sit.portal.repository.StudentRepository;
+import com.sit.portal.repository.FacultyRepository;
+import com.sit.portal.entity.Faculty;
+import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,6 +25,12 @@ public class AuthController {
     private UserRepository userRepository;
 
     @Autowired
+    private StudentRepository studentRepository;
+
+    @Autowired
+    private FacultyRepository facultyRepository;
+
+    @Autowired
     private JwtUtils jwtUtils;
 
     @Autowired
@@ -30,7 +40,6 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody Map<String, String> loginRequest) {
         String email = loginRequest.get("email");
         String password = loginRequest.get("password");
-        String requestedRole = loginRequest.get("role");
 
         if (email == null || password == null) {
             Map<String, String> err = new HashMap<>();
@@ -41,46 +50,20 @@ public class AuthController {
         String cleanEmail = email.trim().toLowerCase();
         User user = null;
 
-        // Check Super Admin Nagesh credentials
-        if ("gnagesh550@gmail.com".equalsIgnoreCase(cleanEmail)) {
-            if ("N@gesh7843".equals(password)) {
-                Optional<User> adminUser = userRepository.findByEmail("gnagesh550@gmail.com");
-                user = adminUser.orElseGet(() -> userRepository.save(User.builder()
-                        .name("Nagesh")
-                        .email("gnagesh550@gmail.com")
-                        .password(passwordEncoder.encode("N@gesh7843"))
-                        .role("admin")
-                        .roleTitle("Super Administrator & Website Controller")
-                        .department("Computer Science & Engineering")
-                        .build()));
-            } else {
+        // DB Lookup
+        Optional<User> userOpt = userRepository.findByEmail(cleanEmail);
+        if (userOpt.isPresent()) {
+            user = userOpt.get();
+            // Validate password
+            if (!passwordEncoder.matches(password, user.getPassword()) && !password.equals(user.getPassword())) {
                 Map<String, String> err = new HashMap<>();
-                err.put("message", "Invalid password for Super Admin.");
+                err.put("message", "Invalid credentials.");
                 return ResponseEntity.status(401).body(err);
             }
         } else {
-            // DB Lookup
-            Optional<User> userOpt = userRepository.findByEmail(cleanEmail);
-            if (userOpt.isPresent()) {
-                user = userOpt.get();
-                // Validate password
-                if (!passwordEncoder.matches(password, user.getPassword()) && !password.equals(user.getPassword())) {
-                    Map<String, String> err = new HashMap<>();
-                    err.put("message", "Invalid credentials.");
-                    return ResponseEntity.status(401).body(err);
-                }
-            } else {
-                // Auto-register user in DB on first login for seamless onboarding
-                String roleToSet = requestedRole != null ? requestedRole : "student";
-                user = userRepository.save(User.builder()
-                        .name((roleToSet.substring(0, 1).toUpperCase() + roleToSet.substring(1)) + " User")
-                        .email(cleanEmail)
-                        .password(passwordEncoder.encode(password))
-                        .role(roleToSet)
-                        .roleTitle(roleToSet.equalsIgnoreCase("faculty") ? "Assistant Professor" : "B.Tech Student")
-                        .department("Computer Science & Engineering")
-                        .build());
-            }
+            Map<String, String> err = new HashMap<>();
+            err.put("message", "Invalid credentials or account does not exist.");
+            return ResponseEntity.status(401).body(err);
         }
 
         String token = jwtUtils.generateToken(user.getEmail(), user.getRole());
@@ -96,13 +79,41 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody User userRequest) {
-        if (userRepository.existsByEmail(userRequest.getEmail())) {
+        String cleanEmail = userRequest.getEmail().trim().toLowerCase();
+        if (userRepository.existsByEmail(cleanEmail)) {
             Map<String, String> err = new HashMap<>();
             err.put("message", "User with this email already exists in PostgreSQL database.");
             return ResponseEntity.badRequest().body(err);
         }
 
+        Optional<Faculty> facOpt = facultyRepository.findByEmail(cleanEmail);
+        if (facOpt.isPresent()) {
+            Faculty fac = facOpt.get();
+            String rank = fac.getRankTitle() != null ? fac.getRankTitle().toLowerCase() : "";
+            if (rank.contains("hod") || rank.contains("head")) {
+                userRequest.setRole("hod");
+                userRequest.setRoleTitle("Head of Department (HOD CSE)");
+            } else {
+                userRequest.setRole("faculty");
+                userRequest.setRoleTitle(fac.getRankTitle());
+            }
+            userRequest.setName(fac.getName());
+        } else if (studentRepository.existsByEmail(cleanEmail)) {
+            userRequest.setRole("student");
+            userRequest.setRoleTitle("B.Tech Student");
+        } else {
+            Map<String, String> err = new HashMap<>();
+            err.put("message", "Registration denied: Your email is not present in any pre-approved department database (Faculty or Student).");
+            return ResponseEntity.badRequest().body(err);
+        }
+
+        userRequest.setEmail(cleanEmail);
         userRequest.setPassword(passwordEncoder.encode(userRequest.getPassword()));
+        
+        if (userRequest.getDepartment() == null || userRequest.getDepartment().isEmpty()) {
+            userRequest.setDepartment("Computer Science & Engineering");
+        }
+        
         User savedUser = userRepository.save(userRequest);
         String token = jwtUtils.generateToken(savedUser.getEmail(), savedUser.getRole());
 
@@ -111,5 +122,34 @@ public class AuthController {
         response.put("user", savedUser);
         response.put("role", savedUser.getRole());
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        if (email == null) {
+            Map<String, String> err = new HashMap<>();
+            err.put("message", "Email is required.");
+            return ResponseEntity.badRequest().body(err);
+        }
+
+        String cleanEmail = email.trim().toLowerCase();
+        Optional<User> userOpt = userRepository.findByEmail(cleanEmail);
+        
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            String token = jwtUtils.generateToken(user.getEmail(), user.getRole());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", token);
+            response.put("user", user);
+            response.put("role", user.getRole());
+            response.put("message", "Authentication successful.");
+            return ResponseEntity.ok(response);
+        } else {
+            Map<String, String> err = new HashMap<>();
+            err.put("message", "No account found for this Google email. Please sign up first.");
+            return ResponseEntity.status(401).body(err);
+        }
     }
 }

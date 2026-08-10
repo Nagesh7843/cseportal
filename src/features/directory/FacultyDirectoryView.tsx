@@ -1,19 +1,71 @@
 import React, { useState } from 'react';
 import { FacultyMember, ViewMode } from '@/types';
 
-interface FacultyDirectoryViewProps {
+interface FacultyDirectoryProps {
   facultyList: FacultyMember[];
-  onToggleFacultyStatus: (id: string) => void;
+  onToggleFacultyStatus?: (id: string) => void;
+  onDeleteFaculty?: (id: string | number) => void;
   onNavigate: (view: ViewMode) => void;
+  onAddFaculty?: () => void;
+  onAddFacultyBulk?: (faculty: FacultyMember[]) => void;
 }
 
-export const FacultyDirectoryView: React.FC<FacultyDirectoryViewProps> = ({
+export const FacultyDirectoryView: React.FC<FacultyDirectoryProps> = ({
   facultyList,
   onToggleFacultyStatus,
-  onNavigate
+  onDeleteFaculty,
+  onNavigate,
+  onAddFaculty,
+  onAddFacultyBulk
 }) => {
   const [search, setSearch] = useState('');
   const [rankFilter, setRankFilter] = useState('ALL');
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onAddFacultyBulk) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (!text) return;
+      
+      const lines = text.split('\n').filter(line => line.trim());
+      if (lines.length < 2) {
+        alert('File appears empty or missing data rows.');
+        return;
+      }
+      
+      const records: FacultyMember[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const row = lines[i].split(',').map(s => s.trim());
+        if (row.length >= 3 && row[0] && row[1]) {
+          records.push({
+            name: row[0],
+            email: row[1],
+            specialization: row[2] || 'General',
+            rank: row[3] || 'Assistant Professor',
+            designation: row[3] || 'Assistant Professor',
+            qualification: row[4] || '',
+            teachingExperience: row[5] || '',
+            industrialExperience: row[6] || '',
+            status: 'ON CAMPUS'
+          });
+        }
+      }
+      
+      if (records.length > 0) {
+        onAddFacultyBulk(records);
+      }
+      
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const filtered = facultyList.filter((f) => {
     const matchesSearch =
@@ -37,13 +89,42 @@ export const FacultyDirectoryView: React.FC<FacultyDirectoryViewProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={() => onNavigate('bulk-email')}
-          className="bg-[#759efd] text-[#00337c] font-bold px-4 py-2.5 rounded-xl text-[13px] hover:bg-[#b0c6ff] transition-colors shadow-xs flex items-center gap-2"
-        >
-          <span className="material-symbols-outlined text-[18px]">mail</span>
-          <span>Contact All Faculty</span>
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+          {onAddFaculty && (
+            <button
+              onClick={onAddFaculty}
+              className="bg-white text-[#000666] font-bold px-4 py-2.5 rounded-xl text-[13px] hover:bg-[#cfe6f2] transition-colors shadow-xs flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined text-[18px]">person_add</span>
+              <span>Add Faculty</span>
+            </button>
+          )}
+          {onAddFacultyBulk && (
+            <>
+              <input 
+                type="file" 
+                accept=".csv" 
+                ref={fileInputRef} 
+                onChange={handleFileUpload} 
+                className="hidden" 
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="bg-[#000666] border-2 border-white text-white font-bold px-4 py-2 rounded-xl text-[13px] hover:bg-white hover:text-[#000666] transition-colors shadow-xs flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[18px]">upload_file</span>
+                <span>Upload CSV</span>
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => onNavigate('faculty-email')}
+            className="bg-[#759efd] text-[#00337c] font-bold px-4 py-2.5 rounded-xl text-[13px] hover:bg-[#b0c6ff] transition-colors shadow-xs flex items-center gap-2"
+          >
+            <span className="material-symbols-outlined text-[18px]">mail</span>
+            <span>Contact All</span>
+          </button>
+        </div>
       </div>
 
       {/* Controls */}
@@ -94,13 +175,19 @@ export const FacultyDirectoryView: React.FC<FacultyDirectoryViewProps> = ({
                     </p>
                   </div>
 
-                  <button
-                    onClick={() => onToggleFacultyStatus(fac.id)}
-                    title="Click to toggle status"
-                    className={`px-3 py-1 rounded-full text-[10px] font-bold border transition-transform active:scale-95 ${statusColors}`}
-                  >
-                    {fac.status}
-                  </button>
+                  {onToggleFacultyStatus ? (
+                    <button
+                      onClick={() => onToggleFacultyStatus(String(fac.id))}
+                      title="Click to toggle status"
+                      className={`px-3 py-1 rounded-full text-[10px] font-bold border transition-transform active:scale-95 ${statusColors}`}
+                    >
+                      {fac.status}
+                    </button>
+                  ) : (
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${statusColors}`}>
+                      {fac.status}
+                    </span>
+                  )}
                 </div>
 
                 <div className="space-y-2 bg-[#f3faff] p-3 rounded-xl text-[12px] border border-[#dbf1fe] mb-4">
@@ -126,6 +213,15 @@ export const FacultyDirectoryView: React.FC<FacultyDirectoryViewProps> = ({
                 >
                   Send Email
                 </a>
+                {onDeleteFaculty && (
+                  <button
+                    onClick={() => onDeleteFaculty(fac.id)}
+                    className="p-2 bg-red-50 text-red-600 rounded-lg border border-red-100 hover:bg-red-100 transition-colors"
+                    title="Delete Faculty"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                  </button>
+                )}
               </div>
             </div>
           );

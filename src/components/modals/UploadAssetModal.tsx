@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { UploadAsset } from '@/types';
 
 interface UploadAssetModalProps {
@@ -18,19 +18,25 @@ export const UploadAssetModal: React.FC<UploadAssetModalProps> = ({
   const [assetCategory, setAssetCategory] = useState<'Assignment' | 'Material' | 'Syllabus'>(
     isAssignmentMode ? 'Assignment' : 'Material'
   );
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setAssetName(e.target.files[0].name);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (assetName.trim()) {
       const newAsset: UploadAsset = {
-        id: `up-${Date.now()}`,
-        name: assetName.endsWith('.pdf') || assetName.endsWith('.zip') ? assetName : `${assetName}.pdf`,
+        title: assetName.endsWith('.pdf') || assetName.endsWith('.zip') ? assetName : `${assetName}.pdf`,
         category: assetCategory,
-        date: 'Just now',
         status: 'Published',
         fileSize: '4.2 MB',
+        uploadedAt: new Date().toISOString(),
       };
       onAddAsset(newAsset);
       setAssetName('');
@@ -76,10 +82,20 @@ export const UploadAssetModal: React.FC<UploadAssetModalProps> = ({
             </select>
           </div>
 
-          <div className="border-2 border-dashed border-[#c6c5d4] rounded-xl p-6 text-center bg-[#f3faff]">
+          <div 
+            className="border-2 border-dashed border-[#c6c5d4] rounded-xl p-6 text-center bg-[#f3faff] cursor-pointer hover:bg-[#e6f6ff] transition-colors"
+            onClick={() => fileInputRef.current?.click()}
+          >
             <span className="material-symbols-outlined text-[32px] text-[#2b5bb5] mb-1">cloud_upload</span>
-            <p className="text-[12px] font-bold text-[#071e27]">Drag and drop document files here</p>
+            <p className="text-[12px] font-bold text-[#071e27]">Drag and drop document files here or click to browse</p>
             <p className="text-[10px] text-[#767683] mt-1">Supports PDF, ZIP, PPTX (Max 25MB)</p>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              className="hidden" 
+              onChange={handleFileChange}
+              accept=".pdf,.zip,.pptx" 
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

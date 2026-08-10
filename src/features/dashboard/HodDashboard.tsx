@@ -55,7 +55,7 @@ export const HodDashboard: React.FC<HodDashboardProps> = ({
               className="px-4 py-2.5 bg-white/10 border border-white/30 text-white font-semibold rounded-xl hover:bg-white/20 transition-all text-xs flex items-center gap-2"
             >
               <Mail className="w-4 h-4" />
-              Department Broadcast
+              Department Email
             </button>
           </div>
         </div>

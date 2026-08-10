@@ -6,81 +6,82 @@ import { Shield, Megaphone, BookOpen, Users, ArrowRight, Sparkles, Clock, Chevro
 interface PublicLandingProps {
   onNavigate: (view: ViewMode) => void;
   notices?: NoticeItem[];
+  isLoggedIn?: boolean;
+  userRole?: string;
 }
 
-export const PublicLanding: React.FC<PublicLandingProps> = ({ onNavigate, notices = [] }) => {
+export const PublicLanding: React.FC<PublicLandingProps> = ({ onNavigate, notices = [], isLoggedIn = false, userRole = 'public' }) => {
   const [selectedNotice, setSelectedNotice] = useState<NoticeItem | null>(null);
 
   return (
     <div className="space-y-6 font-sans text-slate-800">
       
       {/* Vibrant SIT Navy Hero Banner */}
-      <section className="bg-gradient-to-r from-[#000666] via-[#1a237e] to-[#002171] text-white p-6 sm:p-8 rounded-2xl border border-blue-900/40 shadow-2xl relative overflow-hidden">
+      <section className="bg-gradient-to-r from-[#000666] via-[#1a237e] to-[#002171] text-white p-3 sm:p-4 rounded-xl border border-blue-900/40 shadow-xl relative overflow-hidden">
         {/* Glow Effects */}
-        <div className="absolute -top-24 -right-24 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -top-24 -right-24 w-64 h-64 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none"></div>
+        <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
 
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
-          <div className="space-y-3 max-w-2xl">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 relative z-10">
+          <div className="space-y-1.5 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-cyan-200 text-xs font-semibold border border-white/20 backdrop-blur-md">
               <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
               Official Department Portal • SIT CSE
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-snug">
+            <h1 className="text-lg sm:text-xl font-extrabold text-white tracking-tight leading-tight">
               Computer Science & Engineering <br />
               <span className="text-cyan-200 font-normal">Communication Portal</span>
             </h1>
 
-            <p className="text-[#cfe6f2] text-xs sm:text-sm leading-relaxed max-w-xl">
+            <p className="text-[#cfe6f2] text-[10px] sm:text-[11px] leading-tight max-w-xl">
               Centralized platform for students & faculty. Digital notice board, curriculum syllabus, document archives, and live directory.
             </p>
 
-            <div className="flex flex-wrap gap-2.5 pt-1">
-              <button
-                onClick={() => onNavigate('login')}
-                className="px-4 py-2.5 bg-amber-400 text-slate-950 font-bold rounded-xl shadow-lg hover:bg-amber-300 transition-all text-xs flex items-center gap-1.5 border border-amber-300 active:scale-95"
-              >
-                <span>Sign In to Portal</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+            <div className="flex flex-wrap gap-1.5 pt-0.5">
+              {!isLoggedIn ? (
+                <button
+                  onClick={() => onNavigate('login')}
+                  className="px-3 py-1.5 bg-amber-400 text-slate-950 font-bold rounded-lg shadow hover:bg-amber-300 transition-all text-[11px] flex items-center gap-1 border border-amber-300 active:scale-95"
+                >
+                  <span>Sign In</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    const view: ViewMode = userRole === 'admin' ? 'dashboard' : userRole === 'hod' ? 'hod-dashboard' : userRole === 'faculty' ? 'faculty-portal' : 'notices';
+                    onNavigate(view);
+                  }}
+                  className="px-3 py-1.5 bg-amber-400 text-slate-950 font-bold rounded-lg shadow hover:bg-amber-300 transition-all text-[11px] flex items-center gap-1 border border-amber-300 active:scale-95"
+                >
+                  <span>Dashboard</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              )}
               <button
                 onClick={() => onNavigate('notices')}
-                className="px-4 py-2.5 bg-white/10 border border-white/20 text-white hover:bg-white/20 font-semibold rounded-xl transition-all text-xs flex items-center gap-1.5 backdrop-blur-md"
+                className="px-3 py-1.5 bg-white/10 border border-white/20 text-white hover:bg-white/20 font-semibold rounded-lg transition-all text-[11px] flex items-center gap-1 backdrop-blur-md"
               >
-                <Megaphone className="w-3.5 h-3.5 text-cyan-300" />
-                <span>Digital Notices</span>
+                <Megaphone className="w-3 h-3 text-cyan-300" />
+                <span>Notices</span>
               </button>
               <button
                 onClick={() => onNavigate('curriculum')}
-                className="px-4 py-2.5 bg-white/10 border border-white/20 text-white hover:bg-white/20 font-semibold rounded-xl transition-all text-xs flex items-center gap-1.5 backdrop-blur-md"
+                className="px-3 py-1.5 bg-white/10 border border-white/20 text-white hover:bg-white/20 font-semibold rounded-lg transition-all text-[11px] flex items-center gap-1 backdrop-blur-md"
               >
-                <BookOpen className="w-3.5 h-3.5 text-cyan-300" />
+                <BookOpen className="w-3 h-3 text-cyan-300" />
                 <span>Curriculum</span>
               </button>
             </div>
           </div>
 
-          <div className="shrink-0 p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-lg">
-            <img src={sitLogo} alt="SIT Logo" className="h-16 w-auto object-contain brightness-105" />
+          <div className="shrink-0 p-1.5 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 shadow">
+            <img src={sitLogo} alt="SIT Logo" className="h-9 sm:h-10 w-auto object-contain brightness-105" />
           </div>
         </div>
       </section>
 
-      {/* Minimal Department Updates Ticker */}
-      <div className="bg-white border border-slate-200 rounded-xl h-10 flex items-center overflow-hidden px-4 text-xs">
-        <span className="font-bold text-zinc-900 uppercase tracking-wider text-[11px] shrink-0 mr-4 flex items-center gap-1.5">
-          <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-          Updates
-        </span>
-        <div className="flex-1 overflow-hidden relative">
-          <div className="ticker-animate whitespace-nowrap flex items-center gap-10 text-slate-600 text-[12px]">
-            <span>• Academic notice broadcasts active live on central board</span>
-            <span>• Document repository updated with new syllabus materials</span>
-            <span>• Centralized faculty availability matrix active</span>
-          </div>
-        </div>
-      </div>
 
       {/* 📌 Sleek Central Digital Notice Stream */}
       <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
@@ -90,7 +91,7 @@ export const PublicLanding: React.FC<PublicLandingProps> = ({ onNavigate, notice
               <Megaphone className="w-4 h-4 text-indigo-600" />
               Central Digital Notice Stream
             </h2>
-            <p className="text-xs text-slate-500">Live official circulars and academic directives</p>
+            <p className="text-xs text-slate-500">Official circulars and academic updates</p>
           </div>
 
           <button
@@ -135,7 +136,7 @@ export const PublicLanding: React.FC<PublicLandingProps> = ({ onNavigate, notice
               <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[10px] text-slate-500">
                 <span>By <strong>{notice.authorName}</strong></span>
                 <span className="text-indigo-600 font-bold hover:underline flex items-center gap-0.5">
-                  Read Directive
+                  Read Notice
                 </span>
               </div>
             </div>
